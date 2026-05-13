@@ -79,6 +79,51 @@ Unknown `groupId` or `matchId` falls through to an in-page "not found" view with
 
 ---
 
+## Infrastructure
+
+```mermaid
+flowchart LR
+  subgraph Client["Browser (PWA)"]
+    UI["React + Vite app<br/>src/pages • src/components"]
+    SW["Service Worker<br/>(Workbox, autoUpdate)"]
+    UI -. "precache,<br/>flagcdn runtime cache" .- SW
+  end
+
+  subgraph Firebase["Firebase project"]
+    Hosting["Hosting<br/>dist/ • SPA rewrite"]
+    AC{{"App Check<br/>(enforceAppCheck)"}}
+    subgraph Functions["Cloud Functions • Node 20"]
+      Handlers["onCall handlers<br/>getTeams • getMatches<br/>getStandings • getLineup • …"]
+      Schedulers["Scheduled jobs<br/>refreshLiveMatches<br/>refreshFixtures<br/>refreshStandings<br/>freezeCompletedSeasons"]
+    end
+    FS[("Firestore<br/>cache docs + freeze flag<br/>rules + indexes")]
+    Sec[/"Secret: BALLDONTLIE_API_KEY"/]
+  end
+
+  Upstream[["balldontlie<br/>upstream API"]]
+
+  GH["GitHub Actions<br/>.github/workflows/<br/>deploy-prod.yml"]
+
+  UI -- "callable RPC<br/>src/api/scores.js" --> AC
+  AC --> Handlers
+  Hosting -- "serves SPA" --> UI
+  Handlers <-- "getOrSet •<br/>writeThrough" --> FS
+  Handlers -- "cache miss" --> Upstream
+  Schedulers -- "warm cache" --> FS
+  Schedulers --> Upstream
+  Sec -. injected at runtime .-> Handlers
+  Sec -. injected at runtime .-> Schedulers
+  GH == "Functions →<br/>Firestore rules+indexes →<br/>Hosting" ==> Firebase
+```
+
+**Request path.** The PWA never talks to the upstream API directly. `src/api/scores.js` invokes Firebase callable functions, which are gated by App Check. Each handler checks Firestore first (`cache/firestore.ts` → `getOrSet`); on a miss it calls the balldontlie upstream with the secret-managed API key, maps the response into the app's internal shape, and writes it back to Firestore with a status-dependent TTL (15 s for LIVE, 5 min for SCHED, 24 h for FT).
+
+**Background refresh.** Schedulers re-fetch hot data on a cron so user requests almost always hit a warm cache. `freezeCompletedSeasons` flips a per-doc freeze bit that the rules layer uses to reject late writes — see `docs/plan/05-secrets-ops.md` for the unfreeze procedure.
+
+**Delivery.** Merges to `main` trigger `deploy-prod.yml`, which deploys in strict order: Functions → Firestore rules + indexes → Hosting. Preview channels run from `deploy-preview.yml`.
+
+---
+
 ## Architecture — for AI coding agents
 
 This section is a contract. Follow these conventions when extending the app; agents that drift from them tend to make changes that compile but regress design or accessibility.

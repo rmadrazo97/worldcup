@@ -11,7 +11,11 @@ export default function LiveCard({ match, venues }) {
   // live-status carries the only label rather than duplicating it.
   const minuteLabel = match.minute || (isHT ? 'HT' : '')
   return (
-    <Link to={`/match/${match.id}`} className="live-card">
+    <Link
+      to={`/match/${match.id}`}
+      className="live-card"
+      aria-label={`${home?.name || match.home} ${match.hs} — ${match.as} ${away?.name || match.away}, ${isHT ? 'half time' : 'live'}${minuteLabel ? `, minute ${minuteLabel}` : ''}`}
+    >
       <div className="live-card-top">
         <span className="live-card-group">Group {match.group}{match.md ? ` · MD${match.md}` : ''}</span>
         <span className="live-card-venue">{venueLabel}</span>
@@ -33,7 +37,7 @@ export default function LiveCard({ match, venues }) {
       </div>
       <div className="live-card-foot">
         <span className="live-status">
-          <span className="live-dot" />
+          <span className="live-dot" aria-hidden="true" />
           <span>{isHT ? 'Half time' : 'Live'}</span>
         </span>
         <span className="live-minute">{minuteLabel}</span>
@@ -42,7 +46,7 @@ export default function LiveCard({ match, venues }) {
   )
 }
 
-export function LiveSection({ matches, venues }) {
+export function LiveSection({ matches, venues, onJumpToFeed }) {
   const live = matches.filter(m => m.status === 'LIVE' || m.status === 'HT')
   if (live.length === 0) return null
   return (
@@ -52,7 +56,11 @@ export function LiveSection({ matches, venues }) {
           Live now
           <span className="badge-count">{live.length}</span>
         </h2>
-        <a href="#" className="section-aux" onClick={(e) => e.preventDefault()}>All matches →</a>
+        {onJumpToFeed && (
+          <button type="button" className="section-aux" onClick={onJumpToFeed}>
+            All matches <span aria-hidden="true">↓</span>
+          </button>
+        )}
       </div>
       <div className="live-grid">
         {live.map(m => <LiveCard key={m.id} match={m} venues={venues} />)}

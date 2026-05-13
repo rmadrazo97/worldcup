@@ -9,6 +9,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth'
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from 'firebase/functions'
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check'
+import { getAnalytics, isSupported as analyticsSupported, logEvent, setUserProperties } from 'firebase/analytics'
 
 let _state = null
 
@@ -21,6 +22,7 @@ export function initClient() {
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
   }
   const app = initializeApp(cfg)
   const useEmulator = import.meta.env.VITE_USE_EMULATORS === 'true'
@@ -45,8 +47,29 @@ export function initClient() {
     connectFunctionsEmulator(functions, 'localhost', 5001)
   }
   signInAnonymously(auth).catch(() => { /* ignored */ })
-  _state = { app, auth, functions, db, appCheck }
+  _state = { app, auth, functions, db, appCheck, analytics: null }
+
+  // Analytics is best-effort — gated by env (off on local emulator), browser support,
+  // and a measurementId being present. Failures are non-fatal.
+  if (!useEmulator && cfg.measurementId) {
+    analyticsSupported().then((ok) => {
+      if (!ok || !_state) return
+      try {
+        _state.analytics = getAnalytics(app)
+      } catch { /* ignored */ }
+    }).catch(() => { /* ignored */ })
+  }
   return _state
+}
+
+export function track(eventName, params) {
+  if (!_state || !_state.analytics) return
+  try { logEvent(_state.analytics, eventName, params || {}) } catch { /* ignored */ }
+}
+
+export function setAnalyticsUserProps(props) {
+  if (!_state || !_state.analytics) return
+  try { setUserProperties(_state.analytics, props || {}) } catch { /* ignored */ }
 }
 
 export function getClient() {

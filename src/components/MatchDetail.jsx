@@ -8,6 +8,9 @@ import LineupView from './LineupView.jsx'
 import StatsView from './StatsView.jsx'
 import TimelineView from './TimelineView.jsx'
 import FanRush from './FanRush.jsx'
+import { PageSpinner } from './Spinner.jsx'
+import { MatchDetailSkeleton } from './Skeleton.jsx'
+import { track } from '../api/analytics.js'
 
 function kickoffLabel(iso) {
   if (!iso) return ''
@@ -65,6 +68,7 @@ export default function MatchDetail() {
         setMatch(m)
         setDetails(d)
         setLoading(false)
+        track('view_match', { match_id: m.id, status: m.status, group: m.group })
         if (m.status === 'LIVE' || m.status === 'HT') {
           unsubMatch = subscribeMatch(matchId, (next) => {
             if (!alive || !next) return
@@ -130,7 +134,8 @@ export default function MatchDetail() {
     return (
       <div className="match-detail">
         <div className="shell">
-          <p style={{ padding: '2rem 0', color: 'var(--ink-3)' }}>Loading match…</p>
+          <MatchDetailSkeleton />
+          <PageSpinner label="Loading match…" />
         </div>
       </div>
     )
@@ -144,12 +149,22 @@ export default function MatchDetail() {
   const isCXL   = match.status === 'CXL'
   const venueLabel = venuesMap[match.venueShort] || match.venueShort || 'Stadium'
   const fanCount = details?.attendance ?? 5200
+  const homeWon = isFT && match.hs > match.as
+  const awayWon = isFT && match.as > match.hs
+  const isDraw  = isFT && match.hs === match.as
 
   return (
     <div className="match-detail">
       <div className="shell">
+        <nav className="breadcrumb match-breadcrumb" aria-label="Breadcrumb">
+          <Link to="/" className="crumb">World Cup 2026</Link>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          <Link to={`/group/${match.group}`} className="crumb">Group {match.group}</Link>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          <span className="crumb is-current" aria-current="page">{homeTeam.short} v {awayTeam.short}</span>
+        </nav>
 
-        <div className="summary-card">
+        <div className={'summary-card' + (isLive || isHT ? ' is-live' : '') + (isFT ? ' is-ft' : '')}>
           <div className="summary-status">
             {isLive && (
               <span className="live-chip">
@@ -189,10 +204,10 @@ export default function MatchDetail() {
             )}
           </div>
           <div className="summary-body">
-            <div className="summary-team">
+            <div className={'summary-team' + (homeWon ? ' is-winner' : (awayWon ? ' is-loser' : ''))}>
               <span className="crest-lg"><Flag team={match.home} size="lg" /></span>
               <span className="t-name-lg">{homeTeam.name}</span>
-              <span className="t-side">Group {match.group}</span>
+              <span className="t-side">{homeWon ? 'Winner' : awayWon ? 'Lost' : isDraw ? 'Drew' : 'Home'}</span>
             </div>
             <div className="summary-score">
               {(isSched || isPP || isCXL) ? (
@@ -201,16 +216,16 @@ export default function MatchDetail() {
                 </>
               ) : (
                 <>
-                  <span>{match.hs}</span>
+                  <span className={homeWon ? 'w' : awayWon ? 'l' : ''}>{match.hs}</span>
                   <span className="sep">–</span>
-                  <span>{match.as}</span>
+                  <span className={awayWon ? 'w' : homeWon ? 'l' : ''}>{match.as}</span>
                 </>
               )}
             </div>
-            <div className="summary-team">
+            <div className={'summary-team' + (awayWon ? ' is-winner' : (homeWon ? ' is-loser' : ''))}>
               <span className="crest-lg"><Flag team={match.away} size="lg" /></span>
               <span className="t-name-lg">{awayTeam.name}</span>
-              <span className="t-side">Group {match.group}</span>
+              <span className="t-side">{awayWon ? 'Winner' : homeWon ? 'Lost' : isDraw ? 'Drew' : 'Away'}</span>
             </div>
           </div>
           <div className="summary-foot">
@@ -228,10 +243,10 @@ export default function MatchDetail() {
           </div>
         </div>
 
-        <div className="detail-tabs">
-          <button className={'detail-tab' + (tab === 'lineup' ? ' active' : '')} onClick={() => setTab('lineup')}>Line up</button>
-          <button className={'detail-tab' + (tab === 'stats'  ? ' active' : '')} onClick={() => setTab('stats')}>Statistics</button>
-          <button className={'detail-tab' + (tab === 'timeline' ? ' active' : '')} onClick={() => setTab('timeline')}>Timeline</button>
+        <div className="detail-tabs" role="tablist" aria-label="Match details">
+          <button role="tab" aria-selected={tab === 'lineup'} className={'detail-tab' + (tab === 'lineup' ? ' active' : '')} onClick={() => { setTab('lineup'); track('match_tab', { match_id: match.id, tab: 'lineup' }) }}>Line up</button>
+          <button role="tab" aria-selected={tab === 'stats'}  className={'detail-tab' + (tab === 'stats'  ? ' active' : '')} onClick={() => { setTab('stats');  track('match_tab', { match_id: match.id, tab: 'stats' }) }}>Statistics</button>
+          <button role="tab" aria-selected={tab === 'timeline'} className={'detail-tab' + (tab === 'timeline' ? ' active' : '')} onClick={() => { setTab('timeline'); track('match_tab', { match_id: match.id, tab: 'timeline' }) }}>Timeline</button>
         </div>
 
         {tab === 'lineup'   && <LineupView   match={match} details={details} />}

@@ -5,6 +5,8 @@ import { CountryCrest } from './Flag.jsx'
 import MatchCard from './MatchCard.jsx'
 import { useTeams } from '../api/providers.jsx'
 import { formatShortDate } from '../api/clock.js'
+import { track } from '../api/analytics.js'
+import { PageSpinner } from './Spinner.jsx'
 
 const shortDate = (iso) => {
   if (!iso) return ''
@@ -44,6 +46,7 @@ export default function GroupDetail() {
         setStandings(s)
         setGroupMatches([...m].sort((a, b) => (a.kickoff_iso || '').localeCompare(b.kickoff_iso || '')))
         setLoading(false)
+        track('view_group', { group_id: g.id })
       })
       .catch((e) => {
         if (!alive) return
@@ -87,7 +90,13 @@ export default function GroupDetail() {
   }
 
   if (loading && !group) {
-    return <div className="detail"><div className="shell"><p style={{padding:'2rem 0',color:'var(--ink-3)'}}>Loading group…</p></div></div>
+    return (
+      <div className="detail">
+        <div className="shell">
+          <PageSpinner label="Loading group…" />
+        </div>
+      </div>
+    )
   }
 
   if (!group) return null
@@ -100,11 +109,11 @@ export default function GroupDetail() {
     <div className="detail">
       <div className="shell">
         <div className="detail-hero">
-          <div className="breadcrumb">
-            <span>World Cup 2026</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            <span>Groups</span>
-          </div>
+          <nav className="breadcrumb" aria-label="Breadcrumb">
+            <Link to="/" className="crumb">World Cup 2026</Link>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            <span className="crumb is-current" aria-current="page">Groups</span>
+          </nav>
           <h1>
             Group {group.id}
             <span className="label">{group.teams.map(t => teams[t]?.name || t).join(' · ')}</span>

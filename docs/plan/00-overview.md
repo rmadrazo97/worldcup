@@ -101,11 +101,10 @@ the new internal data shape: `04-frontend-swap.md`.
 ## 4. Subscription tier & season handling
 
 - **Tier:** Production assumes a **GOAT** key (matches, players, lineups,
-  events, stats, shots, momentum). The test key `d7424a3d-…` provided for
-  development may or may not have GOAT — Functions treat `401/402/403` from
-  upstream as a soft failure that returns an empty `data` array with a
-  `tier_required` flag the UI can surface as "Data unavailable in this
-  environment" rather than crashing.
+  events, stats, shots, momentum). Dev environments may use a non-GOAT key —
+  Functions treat `401/402/403` from upstream as a soft failure that returns
+  an empty `data` array with a `tier_required` flag the UI can surface as
+  "Data unavailable in this environment" rather than crashing.
 - **Season:** `2026` is the default. The client reads `?season=2022` or
   `?season=2018` from the URL query string and threads it into every
   scores.js call. Functions accept `season` as a parameter and key the cache

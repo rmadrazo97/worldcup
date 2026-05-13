@@ -25,9 +25,10 @@ URLs.
   ```
 - Admin access to the GitHub repo `rmadrazo97/worldcup`.
 - A working `balldontlie.io` account with a **GOAT-tier** API key — see
-  `docs/plan/00-overview.md` § 4 for why this tier is needed. The test key
-  shipped in plan docs (`d7424a3d-…`) works in dev but should not be used in
-  prod.
+  `docs/plan/00-overview.md` § 4 for why this tier is needed. Never commit
+  the key value anywhere in this repo; it lives only in Google Secret
+  Manager (`BALLDONTLIE_API_KEY`) and is bound to Functions via
+  `defineSecret(...)`.
 
 ---
 

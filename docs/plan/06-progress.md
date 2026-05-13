@@ -11,9 +11,9 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blo
 
 ## API access — verified 2026-05-14
 
-The test key `d7424a3d-…` was probed against every endpoint in
+A development key was probed against every endpoint in
 `https://api.balldontlie.io/fifa/worldcup/v1`. All returned 200 — Free,
-ALL-STAR, and GOAT tiers are all accessible with this key. Key facts:
+ALL-STAR, and GOAT tiers are all accessible with that key. Key facts:
 
 - 2026 fixtures **already exist** in the upstream API: 104 matches scheduled
   (group stage + Round of 32 + Round of 16 + QF + SF + F), 12 groups, 16

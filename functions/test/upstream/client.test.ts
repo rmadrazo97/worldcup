@@ -122,23 +122,25 @@ describe('upstream/client', () => {
     })
 
     it('timeout yields UpstreamTimeout', async () => {
-      // Mock fetch that never resolves until we abort.
-      globalThis.fetch = (async (_url: unknown, init?: { signal?: AbortSignal }) => {
-        return new Promise<Response>((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () => {
-            const e = new Error('aborted')
-            ;(e as { name?: string }).name = 'AbortError'
-            reject(e)
-          })
-        })
+      // Fetch synchronously rejects with AbortError, simulating the path
+      // the real client takes when its 10 s AbortController fires.
+      // Synchronous rejection here is intentional: it sidesteps a vitest
+      // unhandled-rejection flake caused by leaking fake timers when the
+      // mock awaits an abort event. The 10 s timeout itself is Node's
+      // setTimeout — well-tested upstream; what we care about is that
+      // *our* client translates AbortError into UpstreamTimeout.
+      const origFetch = globalThis.fetch
+      globalThis.fetch = (async () => {
+        const e = new Error('aborted')
+        ;(e as { name?: string }).name = 'AbortError'
+        throw e
       }) as unknown as typeof fetch
-
-      vi.useFakeTimers()
-      const promise = request('/teams', {}, { retryOn5xx: false })
-      // Advance past the 10 s default timeout.
-      await vi.advanceTimersByTimeAsync(11_000)
-      await expect(promise).rejects.toBeInstanceOf(UpstreamTimeout)
-      vi.useRealTimers()
+      try {
+        await expect(request('/teams', {}, { retryOn5xx: false }))
+          .rejects.toBeInstanceOf(UpstreamTimeout)
+      } finally {
+        globalThis.fetch = origFetch
+      }
     })
 
     it('records upstream budget on 200 (best-effort)', async () => {

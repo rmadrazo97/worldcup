@@ -19,6 +19,11 @@ export const LIGHT_READ: Partial<HttpsOptions> = {
   memory: '256MiB',
   timeoutSeconds: 30,
   concurrency: 80,
+  // Keep one warm instance to eliminate ~2-3 s cold starts on first page
+  // load. Hot read paths (getMatches/getGroups/getTeams/getStadiums) are
+  // hit on every visit; cold-starting all of them adds up to a sluggish
+  // first paint. Cost: ~$5/mo per function at idle, bounded by maxInstances.
+  minInstances: 1,
 }
 
 export const HEAVY_READ: Partial<HttpsOptions> = {

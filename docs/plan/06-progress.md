@@ -268,6 +268,7 @@ Record decisions that diverge from or refine a plan doc. Date, brief.
 | 2026-05-14 | Auth header: `Authorization: <raw-key>` (Bearer also works; we standardize on raw). | verified |
 | 2026-05-14 | Array query encoding: `?param[]=v1&param[]=v2` PHP-style (CSV silently returns 0). | verified |
 | 2026-05-14 | Upstream rate limit on the test key: **600 req/min**, exposed via `x-ratelimit-limit/remaining/reset` headers. Headers are the source of truth; the local token bucket is a defensive belt. | verified |
+| 2026-05-14 | **`LIGHT_READ` now sets `minInstances: 1`.** Hot read paths (getMatches, getGroups, getTeams, getStadiums, getStandings) cold-started on every visit and dominated first-paint latency in prod. ~$5/mo per function at idle (5 functions, bounded by `maxInstances: 50`). `HEAVY_READ` and `COMPOSITE` were already warm. | `functions/src/config.ts` |
 
 ---
 

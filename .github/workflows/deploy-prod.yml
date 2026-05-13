@@ -165,10 +165,31 @@ jobs:
           npm ci
           npm run build
 
+      # FirebaseExtended/action-hosting-deploy needs the SA as raw JSON;
+      # the stored secret is base64. Decode + mask + expose as step output.
+      - name: Decode Firebase service account
+        id: sa
+        env:
+          SA_B64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "${SA_B64:-}" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT secret is empty."
+            exit 1
+          fi
+          decoded=$(printf '%s' "$SA_B64" | base64 -d)
+          while IFS= read -r line; do
+            [ -n "$line" ] && echo "::add-mask::$line"
+          done <<< "$decoded"
+          {
+            echo 'json<<SA_EOF'
+            printf '%s\n' "$decoded"
+            echo 'SA_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Deploy Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          firebaseServiceAccount: ${{ steps.sa.outputs.json }}
           projectId: worldcup-live-scores-2026
           channelId: live

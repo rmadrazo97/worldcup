@@ -7,7 +7,6 @@ import { Flag } from './Flag.jsx'
 import LineupView from './LineupView.jsx'
 import StatsView from './StatsView.jsx'
 import TimelineView from './TimelineView.jsx'
-import FanRush from './FanRush.jsx'
 
 function kickoffLabel(iso) {
   if (!iso) return ''
@@ -143,7 +142,6 @@ export default function MatchDetail() {
   const isPP    = match.status === 'PP'
   const isCXL   = match.status === 'CXL'
   const venueLabel = venuesMap[match.venueShort] || match.venueShort || 'Stadium'
-  const fanCount = details?.attendance ?? 5200
 
   return (
     <div className="match-detail">
@@ -220,10 +218,6 @@ export default function MatchDetail() {
                 <circle cx="12" cy="10" r="3"/>
               </svg>
               {venueLabel}
-            </span>
-            <span className="live-fan-rush">
-              <span style={{fontSize:12, color:'var(--ink-2)', marginRight:8}}>Live fan rush</span>
-              <FanRush count={fanCount} />
             </span>
           </div>
         </div>

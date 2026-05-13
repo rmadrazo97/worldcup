@@ -2,13 +2,11 @@ import { useEffect, useMemo, useRef } from 'react'
 import { formatShortDate } from '../api/clock.js'
 
 // ─────────── Tournament dates: build the date strip ───────────
-// June 11 – July 19, 2026. We pre-compute the strip with day-of-week labels
-// and which days have live matches. "Today" is June 19.
+// June 11 – July 19, 2026. Pre-computed once.
 const TOURNAMENT_DAYS = (() => {
   const out = []
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const dows = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  // Jun 11 2026 is a Thursday
   const start = new Date(2026, 5, 11)
   for (let i = 0; i < 39; i++) {
     const d = new Date(start)
@@ -28,7 +26,7 @@ const dateKey = (m) => {
   try { return formatShortDate(new Date(m.kickoff_iso)) } catch { return '' }
 }
 
-export default function DateStrip({ matches, todayIso }) {
+export default function DateStrip({ matches, selectedIso, onSelect }) {
   const stripRef = useRef(null)
   const liveByDay = useMemo(() => {
     const set = new Set()
@@ -38,17 +36,23 @@ export default function DateStrip({ matches, todayIso }) {
     return set
   }, [matches])
 
+  const hasMatchByDay = useMemo(() => {
+    const set = new Set()
+    matches.forEach(m => set.add(dateKey(m)))
+    return set
+  }, [matches])
+
   useEffect(() => {
-    // Scroll today into view on mount
-    const todayEl = stripRef.current?.querySelector('.date-pill.is-today')
-    if (todayEl) {
-      todayEl.scrollIntoView({ block: 'nearest', inline: 'center' })
-    }
-  }, [])
+    // Scroll the selected pill into view whenever it changes.
+    const el = stripRef.current?.querySelector('.date-pill.is-today')
+    if (el) el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+  }, [selectedIso])
 
   const scrollBy = (dx) => {
     stripRef.current?.scrollBy({ left: dx, behavior: 'smooth' })
   }
+
+  const selectedIdx = TOURNAMENT_DAYS.findIndex(x => x.iso === selectedIso)
 
   return (
     <div className="date-strip-wrap">
@@ -64,25 +68,29 @@ export default function DateStrip({ matches, todayIso }) {
         </div>
       </div>
       <div className="date-strip" ref={stripRef}>
-        {TOURNAMENT_DAYS.map(d => {
-          const isToday = d.iso === todayIso
-          const todayIdx = TOURNAMENT_DAYS.findIndex(x => x.iso === todayIso)
-          const myIdx = TOURNAMENT_DAYS.findIndex(x => x.iso === d.iso)
-          const isPast = myIdx < todayIdx
+        {TOURNAMENT_DAYS.map((d, idx) => {
+          const isSelected = d.iso === selectedIso
+          const isPast = idx < selectedIdx
           const hasLive = liveByDay.has(d.iso)
+          const hasMatches = hasMatchByDay.has(d.iso)
           return (
-            <div
+            <button
               key={d.iso}
+              type="button"
+              onClick={() => onSelect?.(d.iso)}
+              aria-pressed={isSelected}
+              aria-label={`${d.dow} ${d.month} ${d.num}${hasLive ? ' (live matches)' : ''}`}
               className={
                 'date-pill' +
-                (isToday ? ' is-today' : '') +
+                (isSelected ? ' is-today' : '') +
                 (isPast ? ' is-past' : '') +
-                (hasLive ? ' has-live' : '')
+                (hasLive ? ' has-live' : '') +
+                (!hasMatches ? ' is-empty' : '')
               }
             >
               <span className="d-num">{d.num}</span>
               <span className="d-day">{d.dow}</span>
-            </div>
+            </button>
           )
         })}
       </div>

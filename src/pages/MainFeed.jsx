@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getGroups, getMatches, getStandings, getVenues } from '../api/scores.js'
-import { getNow, formatShortDate, formatLongEyebrow } from '../api/clock.js'
+import { formatShortDate, formatLongEyebrow, getNow, getTournamentToday, TOURNAMENT_WINDOW } from '../api/clock.js'
 import { useTeams } from '../api/providers.jsx'
 import Header from '../components/Header.jsx'
 import Intro from '../components/Intro.jsx'
@@ -15,6 +15,9 @@ const dateKey = (m) => {
   try { return formatShortDate(new Date(m.kickoff_iso)) } catch { return '' }
 }
 
+const isSameLocalDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+
 export default function MainFeed() {
   const { teams } = useTeams()
   const [matches, setMatches] = useState([])
@@ -27,13 +30,21 @@ export default function MainFeed() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState('all')
+  // The day currently being viewed in the date strip. Defaults to the
+  // tournament-clamped "today" so visits before kickoff land on Jun 11
+  // and visits after the final land on Jul 19.
+  const [selectedDate, setSelectedDate] = useState(() => getTournamentToday())
 
-  const now = getNow()
-  const todayIso = formatShortDate(now)
-  const longDate = formatLongEyebrow(now)
-  const yesterday = new Date(now)
+  const todayIso = formatShortDate(selectedDate)
+  const longDate = formatLongEyebrow(selectedDate)
+  const yesterday = new Date(selectedDate)
   yesterday.setDate(yesterday.getDate() - 1)
   const yesterdayIso = formatShortDate(yesterday)
+  // Is the selected day the actual wall-clock today (i.e. not auto-clamped)?
+  const wallNow = getNow()
+  const isRealToday = isSameLocalDay(selectedDate, wallNow)
+  const beforeKickoff = wallNow < TOURNAMENT_WINDOW.start
+  const afterFinal   = wallNow > TOURNAMENT_WINDOW.end
 
   useEffect(() => {
     let alive = true
@@ -71,7 +82,17 @@ export default function MainFeed() {
     return m ? m.md : null
   }, [matches, todayIso])
 
-  const eyebrow = todayMatchday ? `${longDate} · Matchday ${todayMatchday}` : longDate
+  // Eyebrow: when the wall clock is before/after the tournament, surface
+  // the framing so the user understands why the selected day isn't today.
+  const eyebrow = (() => {
+    if (beforeKickoff && isRealToday === false && isSameLocalDay(selectedDate, TOURNAMENT_WINDOW.start)) {
+      return `Tournament opens ${longDate}`
+    }
+    if (afterFinal && isSameLocalDay(selectedDate, TOURNAMENT_WINDOW.end)) {
+      return `Final · ${longDate}`
+    }
+    return todayMatchday ? `${longDate} · Matchday ${todayMatchday}` : longDate
+  })()
 
   const counts = useMemo(() => ({
     all:       matches.length,
@@ -87,6 +108,25 @@ export default function MainFeed() {
   )
   const isSearching = query.trim().length > 0
 
+  // Default-view list: matches on the selected day, sorted live-first.
+  const defaultDayList = useMemo(() => {
+    const order = { LIVE: 0, HT: 0, SCHED: 1, FT: 2, PP: 3, CXL: 3 }
+    return matches
+      .filter(m => dateKey(m) === todayIso)
+      .sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9))
+  }, [matches, todayIso])
+
+  // Fallback when the selected day has no matches: the next N scheduled
+  // matches after the selected date, in chronological order. Used for
+  // pre-tournament visits and rest-day gaps.
+  const upcomingFallback = useMemo(() => {
+    const startKey = selectedDate.toISOString().slice(0, 10) // YYYY-MM-DD
+    return matches
+      .filter(m => (m.kickoff_iso || '') >= startKey && m.status === 'SCHED')
+      .sort((a, b) => (a.kickoff_iso || '').localeCompare(b.kickoff_iso || ''))
+      .slice(0, 5)
+  }, [matches, selectedDate])
+
   const feedByTab = useMemo(() => {
     let pool = filtered.matches
     if (tab === 'live')           pool = pool.filter(m => m.status === 'LIVE' || m.status === 'HT')
@@ -101,6 +141,15 @@ export default function MainFeed() {
 
   const noResults = isSearching && filtered.matches.length === 0 && filtered.groups.length === 0
 
+  const sectionTitle = (() => {
+    if (tab === 'live')      return 'Live matches'
+    if (tab === 'today')     return "Today's matches"
+    if (tab === 'yesterday') return 'Yesterday'
+    if (tab === 'upcoming')  return 'Upcoming'
+    if (isSearching)         return 'Matches'
+    return isRealToday ? "Today's matches" : longDate
+  })()
+
   return (
     <div className="app">
       <Header
@@ -114,7 +163,7 @@ export default function MainFeed() {
 
       <div className="shell">
         <Intro matches={matches} todayIso={todayIso} eyebrow={eyebrow} />
-        <DateStrip matches={matches} todayIso={todayIso} />
+        <DateStrip matches={matches} selectedIso={todayIso} onSelect={setSelectedDate} />
 
         {error && matches.length === 0 ? (
           <section className="section">
@@ -143,17 +192,13 @@ export default function MainFeed() {
             {/* Live now */}
             {!isSearching && tab === 'all' && <LiveSection matches={matches} venues={venues} />}
 
-            {/* Today's matches OR filtered feed */}
+            {/* Selected-day matches OR filtered feed */}
             <section className="section">
               <div className="section-head">
                 <h2 className="section-title">
-                  {tab === 'all' && (isSearching ? 'Matches' : "Today's matches")}
-                  {tab === 'live' && 'Live matches'}
-                  {tab === 'today' && "Today's matches"}
-                  {tab === 'yesterday' && 'Yesterday'}
-                  {tab === 'upcoming' && 'Upcoming'}
+                  {sectionTitle}
                   <span className="badge-count">{tab === 'all' && !isSearching
-                    ? matches.filter(m => dateKey(m) === todayIso).length
+                    ? defaultDayList.length
                     : feedByTab.length}</span>
                 </h2>
                 <div className="section-controls">
@@ -162,18 +207,34 @@ export default function MainFeed() {
               </div>
 
               {(() => {
-                const list = (tab === 'all' && !isSearching)
-                  ? matches.filter(m => dateKey(m) === todayIso)
-                              .sort((a, b) => {
-                                const order = { LIVE: 0, HT: 0, SCHED: 1, FT: 2, PP: 3, CXL: 3 }
-                                return (order[a.status] ?? 9) - (order[b.status] ?? 9)
-                              })
-                  : feedByTab
+                const isDefaultView = tab === 'all' && !isSearching
+                const list = isDefaultView ? defaultDayList : feedByTab
                 if (list.length === 0) {
+                  // Default view: gracefully fall back to "Up next" so the
+                  // page is never an empty stub before/after the tournament
+                  // or on rest days between matchdays.
+                  if (isDefaultView && upcomingFallback.length > 0) {
+                    const upcomingLabel = beforeKickoff
+                      ? 'Tournament starts soon'
+                      : afterFinal ? 'Tournament concluded' : 'Up next'
+                    return (
+                      <>
+                        <div className="upcoming-banner">
+                          <span className="upcoming-eyebrow">{upcomingLabel}</span>
+                          <span className="upcoming-sub">No matches on {longDate}. Showing the next fixtures.</span>
+                        </div>
+                        <div className="match-list">
+                          {upcomingFallback.map(m => (
+                            <MatchCard key={m.id} match={m} to={`/match/${m.id}`} showDate />
+                          ))}
+                        </div>
+                      </>
+                    )
+                  }
                   return (
                     <div className="empty">
                       <div className="empty-title">Nothing scheduled here</div>
-                      <div className="empty-sub">Try another tab.</div>
+                      <div className="empty-sub">Try another date or tab.</div>
                     </div>
                   )
                 }

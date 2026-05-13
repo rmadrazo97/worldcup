@@ -28,12 +28,14 @@ export default function GroupCard({ group, standings, groupMatches }) {
         <span className={'group-state' + (hasLive ? ' has-live' : '')}>{stateLabel}</span>
       </div>
       <div className="group-teams">
-        {rows.map((row, i) => {
+        {(rows.length > 0
+          ? rows.map((row, i) => ({ team: row.team, pos: row.pos ?? (i + 1), gd: row.gd, pts: row.pts }))
+          : (group.teams || []).map((short, i) => ({ team: short, pos: i + 1, gd: 0, pts: 0 }))
+        ).map((row) => {
           const t = teams[row.team]
-          const pos = row.pos ?? (i + 1)
           return (
-            <div key={row.team} className={'group-team-row' + (pos <= 2 ? ' qual' : '')}>
-              <span className="pos">{pos}</span>
+            <div key={row.team} className={'group-team-row' + (row.pos <= 2 ? ' qual' : '')}>
+              <span className="pos">{row.pos}</span>
               <div className="team-l">
                 <CountryCrest team={row.team} variant="sm" />
                 <span className="t-name">{t?.name || row.team}</span>

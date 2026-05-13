@@ -12,6 +12,7 @@ const TOURNAMENT_DAYS = (() => {
     const d = new Date(start)
     d.setDate(start.getDate() + i)
     out.push({
+      date: d,
       iso: `${months[d.getMonth()]} ${d.getDate()}`,
       num: d.getDate(),
       dow: dows[d.getDay()],
@@ -77,7 +78,7 @@ export default function DateStrip({ matches, selectedIso, onSelect }) {
             <button
               key={d.iso}
               type="button"
-              onClick={() => onSelect?.(d.iso)}
+              onClick={() => onSelect?.(new Date(d.date))}
               aria-pressed={isSelected}
               aria-label={`${d.dow} ${d.month} ${d.num}${hasLive ? ' (live matches)' : ''}`}
               className={

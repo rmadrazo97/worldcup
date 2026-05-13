@@ -293,6 +293,10 @@ html, body {
   box-shadow: 0 0 0 4px var(--live-glow-2);
   animation: now-pulse 2.2s ease-in-out infinite;
 }
+.intro-meta .intro-tz {
+  color: var(--ink-3);
+  cursor: help;
+}
 @keyframes now-pulse {
   0%, 100% { box-shadow: 0 0 0 0 var(--live-glow-2); opacity: 0.8; }
   50%      { box-shadow: 0 0 0 6px transparent; opacity: 1; }

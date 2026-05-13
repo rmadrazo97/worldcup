@@ -35,6 +35,33 @@ export function getTournamentToday() {
 
 export const TOURNAMENT_WINDOW = { start: TOURNAMENT_2026_START, end: TOURNAMENT_2026_END }
 
+// Browser-local time-zone abbreviation, e.g. "EDT", "PT", "CET". Used to
+// tell viewers that all match times displayed are in their own zone, not
+// venue-local or UTC. Returns "" if Intl can't determine one (rare).
+export function getUserTimezoneAbbr() {
+  try {
+    const parts = new Intl.DateTimeFormat([], { timeZoneName: 'short' }).formatToParts(new Date())
+    return parts.find(p => p.type === 'timeZoneName')?.value || ''
+  } catch {
+    return ''
+  }
+}
+
+// Format a kickoff time in the user's local timezone with the zone
+// abbreviation appended, e.g. "9:00 PM EDT". Falls back to the bare time
+// if the zone can't be resolved.
+export function formatKickoffWithZone(iso) {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    const zone = getUserTimezoneAbbr()
+    return zone ? `${time} ${zone}` : time
+  } catch {
+    return ''
+  }
+}
+
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DOWS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']

@@ -9,6 +9,30 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blo
 
 ---
 
+## API access — verified 2026-05-14
+
+The test key `d7424a3d-…` was probed against every endpoint in
+`https://api.balldontlie.io/fifa/worldcup/v1`. All returned 200 — Free,
+ALL-STAR, and GOAT tiers are all accessible with this key. Key facts:
+
+- 2026 fixtures **already exist** in the upstream API: 104 matches scheduled
+  (group stage + Round of 32 + Round of 16 + QF + SF + F), 12 groups, 16
+  stadiums, 48 teams. All match `status` currently `scheduled`. No
+  match-lineups / events / stats for unplayed matches (expected).
+- Historical seasons 2018 + 2022 are **fully populated** (lineups, events,
+  team_match_stats, player_match_stats, shots, momentum, best_players,
+  avg_positions, team_form). Match id 1000 = ARG-SAU 2022; useful test
+  fixture target.
+- Auth: `Authorization: <raw-key>` (Bearer also accepted).
+- Array query: `?seasons[]=2018&seasons[]=2022` (PHP repeated style).
+- Rate limit: 600 req/min, exposed via `x-ratelimit-limit/remaining/reset`.
+
+Implication for the plan: **every workstream is unblocked** — we can write
+real fixtures, build real mappers, and end-to-end test against live data
+today. No tier upgrade is needed to develop or to ship M1–M4.
+
+---
+
 ## Quick start for a new session
 
 1. Read `00-overview.md` once.
@@ -174,6 +198,11 @@ Exit criteria: Live score updates within ≤ 60 s with no client-side polling.
 | M4.B3 | `schedulers/refreshStandings.ts` (every 10 min during matchdays) | `03-backend-functions.md` § 8 | M1.B12 | `[ ]` |  |  |
 | M4.B4 | `meta/health` doc (live window flag) + `meta/scheduler_state` | `01-architecture.md` § 7 | M4.B1 | `[ ]` |  |  |
 | M4.B5 | Token bucket in `meta/rate_buckets/{uid}` + transactional decrement | `03-backend-functions.md` § 9 | — | `[ ]` |  |  |
+| M4.B6 | Read `x-ratelimit-*` headers in `upstream/client.ts`, persist to `meta/upstream_budget` | `03-backend-functions.md` § 9 | M1.B1 | `[ ]` |  | source of truth, not local counter |
+| M4.B7 | `freezeCompletedSeasons` scheduler (daily 05:00 UTC) — per-match grace freeze + per-season cohort freeze | `03-backend-functions.md` § 8.4, `01-architecture.md` § 6 | M2.B*, M3.B* | `[ ]` |  | implements "data lives on our side forever" guarantee |
+| M4.B8 | `getOrSet` honors `_frozen: true` (contract test asserts upstream never invoked) | `03-backend-functions.md` § 5 | M1.B3 | `[ ]` |  | bypasses TTL entirely |
+| M4.B9 | `scripts/unfreeze.ts` Admin-SDK CLI for rare correction backfills | `03-backend-functions.md` § 8.4 | M4.B7 | `[ ]` |  | doc target + optional cohort |
+| M4.B10 | TTL policies on `_expiresAt` for `matches, matchDetails, lineups, standings, teams, stadiums` — **but** frozen docs use year-9999 `_expiresAt` so TTL never evicts them | `03-backend-functions.md` § 5, § 8.4 | M0.* | `[ ]` |  |  |
 
 ### Frontend
 
@@ -205,6 +234,8 @@ Exit criteria: `npm run deploy:prod` from a clean clone with only Secret Manager
 | M5.11 | Runbook drill — simulate upstream outage, verify alerts + degraded UX | `05-secrets-ops.md` § 12 | M5.3 | `[ ]` |  |  |
 | M5.12 | Runbook drill — rotate `BALLDONTLIE_API_KEY` end-to-end | `05-secrets-ops.md` § 12 | M0.6 | `[ ]` |  |  |
 | M5.13 | Tag `v1.0.0` release | `05-secrets-ops.md` § 14 | all | `[ ]` |  |  |
+| M5.14 | Freeze drill: simulate "season complete" with a backdated FT cohort; verify scheduler sets `_frozen` on every doc; verify cache reads return cached payload with zero upstream calls | `03-backend-functions.md` § 8.4 | M4.B7, M4.B8 | `[ ]` |  | gate for "we keep all data forever" requirement |
+| M5.15 | Document `unfreeze` runbook step in `05-secrets-ops.md` § 12 | `05-secrets-ops.md` § 12 | M4.B9 | `[ ]` |  |  |
 
 ---
 
@@ -232,6 +263,11 @@ Record decisions that diverge from or refine a plan doc. Date, brief.
 | 2026-05-14 | Plan docs live under `docs/plan/`, tracked in git. | user, ratified in `00-overview.md` |
 | 2026-05-14 | All callables protected by App Check (reCAPTCHA Enterprise on web). | `05-secrets-ops.md` § 4 |
 | 2026-05-14 | Region `us-central1` for Functions + Firestore. | `03-backend-functions.md` § 3 |
+| 2026-05-14 | **Freeze rule:** completed seasons and 24h-grace FT matches are pinned `_frozen:true` and never refetch upstream. Achieves "data lives on our side forever" — independent of balldontlie continuing to operate. | user request → `01-architecture.md` § 6, `03-backend-functions.md` § 5, § 8.4 |
+| 2026-05-14 | **API verification probe complete.** Test key has full access to **every** endpoint (Free + ALL-STAR + GOAT). 2026 fixtures already in API (104 matches, all `scheduled`, 12 groups + KO bracket). | live probe log in this file's history |
+| 2026-05-14 | Auth header: `Authorization: <raw-key>` (Bearer also works; we standardize on raw). | verified |
+| 2026-05-14 | Array query encoding: `?param[]=v1&param[]=v2` PHP-style (CSV silently returns 0). | verified |
+| 2026-05-14 | Upstream rate limit on the test key: **600 req/min**, exposed via `x-ratelimit-limit/remaining/reset` headers. Headers are the source of truth; the local token bucket is a defensive belt. | verified |
 
 ---
 
@@ -241,9 +277,9 @@ Things the plan currently marks as TBD or open. Resolve in flight; add a row her
 
 | # | Question | Where it lives | Owner | Status |
 |---|---|---|---|---|
-| Q1 | balldontlie GOAT rate limit (assumed 300 req/min) | `01-architecture.md` § 8 |  | `[ ]` |
-| Q2 | Authorization header literal form (`Bearer <key>` vs `<key>` vs custom) | `03-backend-functions.md` § 4 |  | `[ ]` |
-| Q3 | Array query encoding for `seasons[]`, `match_ids[]` | `03-backend-functions.md` § 4 |  | `[ ]` |
+| Q1 | ~~balldontlie GOAT rate limit (assumed 300 req/min)~~ **RESOLVED 2026-05-14**: 600 req/min on test key, exposed via `x-ratelimit-*` response headers; updated `01-architecture.md` § 8 and `03-backend-functions.md` § 9 accordingly. | `01-architecture.md` § 8 | — | `[x]` |
+| Q2 | ~~Authorization header literal form~~ **RESOLVED 2026-05-14**: raw `Authorization: <key>` (Bearer also works). Other forms 401. | `03-backend-functions.md` § 4 | — | `[x]` |
+| Q3 | ~~Array query encoding for `seasons[]`, `match_ids[]`~~ **RESOLVED 2026-05-14**: PHP-style `?seasons[]=2018&seasons[]=2022`. CSV silently returns 0 results. | `03-backend-functions.md` § 4 | — | `[x]` |
 | Q4 | xG availability per season (2018/2022) | `02-data-contracts.md` § Open |  | `[ ]` |
 | Q5 | KO `stage` field shape before brackets are set | `02-data-contracts.md` § Open |  | `[ ]` |
 | Q6 | Venue short-code strategy: synthesize vs override map | `02-data-contracts.md` § Open |  | `[ ]` |

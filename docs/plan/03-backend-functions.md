@@ -280,8 +280,37 @@ function authHeaders(): HeadersInit {
 }
 ```
 
-Auth header is the raw key, not `Bearer <key>` — balldontlie docs use the
-former. **TBD verify** against a live 200 response on first integration.
+Auth header is the raw key. **Verified 2026-05-14:** both
+`Authorization: <key>` and `Authorization: Bearer <key>` return 200; we
+standardize on the raw form. `X-API-Key` and `Authorization: token <key>`
+both return 401 — do not implement them.
+
+### Array query encoding
+
+balldontlie expects PHP-style repeated keys: `?seasons[]=2018&seasons[]=2022`.
+The `buildUrl` helper must therefore expand any `string[]` value into
+multiple `key[]=v` pairs, **not** join with commas. **Verified 2026-05-14**:
+
+| Encoding                                | Result                |
+| --------------------------------------- | --------------------- |
+| `?seasons[]=2018&seasons[]=2022`        | 200, 40 items         |
+| `?seasons=2018,2022`                    | 200, 0 items (silent) |
+| `?seasons[]=2018%26seasons[]=2022`      | 200, 0 items (silent) |
+
+Reference `buildUrl`:
+
+```ts
+export function buildUrl(base: string, q: Record<string, unknown>): string {
+  const usp = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) {
+    if (v == null) continue;
+    if (Array.isArray(v)) for (const x of v) usp.append(`${k}[]`, String(x));
+    else usp.set(k, String(v));
+  }
+  const qs = usp.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+```
 
 ### `request<T>`
 
@@ -427,6 +456,9 @@ export interface CachedDoc<T> {
   _expiresAt: Timestamp;
   _schema: 'v2';
   _source: 'upstream' | 'stale-fallback';
+  _frozen?: boolean;            // see "Freeze rule" in 01-architecture.md § 6
+  _frozenAt?: Timestamp;
+  _frozenReason?: 'match-ft-grace' | 'season-complete' | 'manual';
 }
 
 export async function getOrSet<T>(
@@ -434,15 +466,21 @@ export async function getOrSet<T>(
   docId: string,
   ttlSeconds: number,
   freshFn: () => Promise<T>,
-): Promise<{ value: T; cacheHit: boolean; stale: boolean }> {
+): Promise<{ value: T; cacheHit: boolean; stale: boolean; frozen: boolean }> {
   const ref = db.collection(collection).doc(docId);
   const snap = await ref.get();
   const now = Date.now();
 
   if (snap.exists) {
     const doc = snap.data() as CachedDoc<T>;
+    // Freeze short-circuit: completed seasons / late-grace FT matches never
+    // refetch upstream. This is the "data lives on our side forever"
+    // guarantee documented in 01-architecture.md § 6 "Freeze rule".
+    if (doc._frozen === true) {
+      return { value: doc.payload, cacheHit: true, stale: false, frozen: true };
+    }
     if (doc._expiresAt.toMillis() > now) {
-      return { value: doc.payload, cacheHit: true, stale: false };
+      return { value: doc.payload, cacheHit: true, stale: false, frozen: false };
     }
   }
 
@@ -450,8 +488,11 @@ export async function getOrSet<T>(
     // re-check after acquiring the lock
     const snap2 = await ref.get();
     const doc2 = snap2.exists ? (snap2.data() as CachedDoc<T>) : undefined;
+    if (doc2?._frozen === true) {
+      return { value: doc2.payload, cacheHit: true, stale: false, frozen: true };
+    }
     if (doc2 && doc2._expiresAt.toMillis() > now) {
-      return { value: doc2.payload, cacheHit: true, stale: false };
+      return { value: doc2.payload, cacheHit: true, stale: false, frozen: false };
     }
 
     try {
@@ -463,17 +504,39 @@ export async function getOrSet<T>(
         _expiresAt: expiresAt,
         _schema: 'v2',
         _source: 'upstream',
+        // _frozen is preserved on subsequent writes only if it was already
+        // true — we never accidentally unfreeze on a write path. See the
+        // freezeCompletedSeasons scheduler (§ 8.4) for the only writer that
+        // sets _frozen.
+        ...(doc2?._frozen === true ? { _frozen: true, _frozenAt: doc2._frozenAt, _frozenReason: doc2._frozenReason } : {}),
       } satisfies CachedDoc<T>);
-      return { value: fresh, cacheHit: false, stale: false };
+      return { value: fresh, cacheHit: false, stale: false, frozen: false };
     } catch (err) {
       if (doc2) {
         logger.warn('cache.stale_fallback', { collection, docId, err: String(err) });
-        return { value: doc2.payload, cacheHit: true, stale: true };
+        return { value: doc2.payload, cacheHit: true, stale: true, frozen: false };
       }
       throw err;
     }
   });
 }
+```
+
+**Contract test** (must ship with the cache layer):
+
+```ts
+it('never calls upstream when _frozen', async () => {
+  await db.collection('matches').doc('1000').set({
+    payload: { id: 1000, status: 'FT', /* … */ },
+    _fetchedAt: tsLongAgo, _expiresAt: tsLongAgo,
+    _schema: 'v2', _source: 'upstream',
+    _frozen: true, _frozenAt: tsLongAgo, _frozenReason: 'season-complete',
+  });
+  const upstream = vi.fn();
+  const out = await getOrSet('matches', '1000', 30, upstream);
+  expect(out.frozen).toBe(true);
+  expect(upstream).not.toHaveBeenCalled();
+});
 ```
 
 Semantics:
@@ -1086,6 +1149,101 @@ export const refreshStandings = onSchedule(
 match's `datetime` is within today UTC (or within the next 4 h, to cover
 pre-match window).
 
+### 8.4 `freezeCompletedSeasons`
+
+Implements the freeze rule from `01-architecture.md` § 6. Two responsibilities:
+
+1. **Per-match grace freeze.** For every doc in `matches/{matchId}` with
+   `status === 'FT'` and `kickoff_iso + 24h < now`, set `_frozen: true,
+   _frozenReason: 'match-ft-grace'` on the match doc and every related
+   `matchDetails/{matchId}/{section}` and `lineups/{matchId}` doc. Stat
+   corrections after this 24h window are vanishingly rare; if needed,
+   operator un-freezes manually.
+
+2. **Per-season cohort freeze.** A season is considered "complete" when
+   every match for that season has been `FT` for at least 14 days. When
+   that flips, the scheduler iterates every cached doc carrying that
+   `season` field — teams, stadiums, standings, players, rosters, lineups,
+   events, stats, momentum, shots, avg_positions, best_players, team_form
+   — and sets `_frozen: true, _frozenReason: 'season-complete'`. From this
+   point on, that season makes **zero upstream calls** ever, regardless of
+   whether balldontlie continues operating, drops the tier we use, or goes
+   offline entirely.
+
+| Field | Value |
+|---|---|
+| Schedule | `0 5 * * *` (05:00 UTC daily, after `refreshFixtures` settles) |
+| Reads | `matches` (by season), `matchDetails`, `standings`, `teams`, `stadiums`, `lineups`, `players`, `rosters` |
+| Writes | `_frozen`, `_frozenAt`, `_frozenReason` fields on every applicable doc, plus `meta/seasonStatus/{season}` |
+| Idempotency | already-frozen docs are skipped (the merge is a no-op) |
+
+```ts
+export const freezeCompletedSeasons = onSchedule(
+  { schedule: '0 5 * * *', timeZone: 'UTC', ...SCHEDULER },
+  async () => {
+    // (a) per-match grace freeze across all seasons
+    const cutoff = Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
+    const ftMatches = await db.collection('matches')
+      .where('payload.status', '==', 'FT')
+      .where('payload.kickoff_iso', '<', cutoff.toDate().toISOString())
+      .where('_frozen', '!=', true)
+      .get();
+    for (const snap of ftMatches.docs) {
+      await freezeMatchCohort(snap.id, 'match-ft-grace');
+    }
+
+    // (b) per-season cohort freeze
+    for (const season of [2018, 2022, 2026]) {
+      const allDone = await isSeasonFullyComplete(season);
+      if (!allDone) continue;
+      const state = await db.doc(`meta/seasonStatus/${season}`).get();
+      if (state.exists && state.data()?.frozen) continue;          // already done
+      await freezeEverythingForSeason(season);
+      await db.doc(`meta/seasonStatus/${season}`).set({
+        frozen: true, frozenAt: FieldValue.serverTimestamp(),
+      });
+      logger.info('season.frozen', { season });
+    }
+  },
+);
+
+// "all FT and oldest FT was ≥ 14 days ago"
+async function isSeasonFullyComplete(season: number): Promise<boolean> {
+  const all = await db.collection('matches').where('payload.season', '==', season).get();
+  if (all.empty) return false;
+  let mostRecentFt = 0;
+  for (const d of all.docs) {
+    const m = d.data().payload;
+    if (m.status !== 'FT') return false;
+    const t = Date.parse(m.kickoff_iso);
+    if (t > mostRecentFt) mostRecentFt = t;
+  }
+  return mostRecentFt > 0 && Date.now() - mostRecentFt >= 14 * 24 * 60 * 60 * 1000;
+}
+```
+
+**Why 14 days, not zero:** stat corrections, late VAR appeals, and disputed
+goal-credit assignments can land in the upstream feed days after a final.
+14 days is the empirical comfort window FIFA uses for its own historical
+archive. Adjustable via `meta/config/freezeGraceDays`.
+
+**Restore on revision (rare).** If we ever need to ingest a correction
+after freeze:
+1. Operator runs `npm run unfreeze -- --doc matches/<id>` (Admin SDK script
+   that clears `_frozen` on the target doc and any related subdocs).
+2. Next cache read fetches fresh from upstream and writes through normally.
+3. The next `freezeCompletedSeasons` pass re-freezes it.
+
+This is documented in `05-secrets-ops.md` § 12 (runbook).
+
+**Storage durability.** Firestore documents persist indefinitely until
+explicitly deleted. The TTL policy on `_expiresAt` does **not** evict
+frozen docs because we set `_expiresAt` to the year 9999 on freeze (TTL
+policy only evicts past-dated timestamps). Daily Firestore GCS export
+(`05-secrets-ops.md` § 10) provides a second layer of durability: a
+30-day-retained snapshot in GCS that we can restore from if the live
+collection is ever corrupted.
+
 ---
 
 ## 9. Rate limiting
@@ -1125,11 +1283,31 @@ day) this is <$0.20/day at current Firestore pricing. Cross-ref the cost
 section in `01-architecture.md`.
 
 The server-internal upstream budget (separate from per-user limits) is
-tracked in `meta/upstream_budget` and incremented by `upstream/client.ts`
-on every successful 200 response. The doc carries
-`{ date: 'YYYY-MM-DD', count }`; we reset on date change. A daily check in
-the scheduler logs a warning at 80% of the GOAT-tier monthly cap divided
-into days.
+tracked in `meta/upstream_budget` and updated by `upstream/client.ts`
+after every 200 response — we **read the response headers** rather than
+counting locally:
+
+- `x-ratelimit-limit` — current ceiling (verified at **600 req/min** on the
+  test key, 2026-05-14).
+- `x-ratelimit-remaining` — tokens left in this window.
+- `x-ratelimit-reset` — Unix timestamp when the window resets.
+
+```ts
+// upstream/client.ts (excerpt — after `res.ok`)
+if (res.ok) {
+  const limit = Number(res.headers.get('x-ratelimit-limit') ?? 0);
+  const remaining = Number(res.headers.get('x-ratelimit-remaining') ?? 0);
+  const resetAt = Number(res.headers.get('x-ratelimit-reset') ?? 0) * 1000;
+  void cache.bumpUpstreamBudget({ limit, remaining, resetAt });
+  if (remaining < limit * 0.1) {
+    logger.warn('upstream.rate_low', { limit, remaining, resetAt });
+  }
+  return (await res.json()) as T;
+}
+```
+
+A daily check in the scheduler warns at <10% remaining for >5 min — this
+is our actual signal of upstream pressure, not a guessed local counter.
 
 ---
 
@@ -1513,6 +1691,17 @@ Numbered list, one acceptance criterion per file. Feeds `06-progress.md`.
 39. **`src/schedulers/refreshStandings.ts`** — onSchedule every 10 min,
     self-skips off-days. Emulator test: matchday fixture writes; non-matchday
     skips.
+39a. **`src/schedulers/freezeCompletedSeasons.ts`** — onSchedule daily 05:00 UTC.
+    Per-match grace freeze (status=FT, kickoff_iso+24h<now) and per-season
+    cohort freeze (all FT for ≥14d). Emulator tests cover: (a) FT match
+    older than 24h gets `_frozen:'match-ft-grace'`; (b) all-FT season
+    triggers cohort freeze; (c) already-frozen docs are a no-op;
+    (d) `getOrSet` against a frozen doc never invokes upstream
+    (assert with vi.fn() stub).
+39b. **`scripts/unfreeze.ts`** — Admin SDK CLI: `tsx scripts/unfreeze.ts
+    --doc matches/<id>` (and optional `--cohort season=<n>`). Acceptance:
+    clearing `_frozen` on a doc allows the next read to refetch from
+    upstream; documented in `05-secrets-ops.md` § 12.
 40. **`src/index.ts`** — re-exports every callable + scheduler.
     `firebase deploy --only functions --dry-run` lists each one.
 41. **`test/helpers/stubUpstream.ts`** — fixture replay. Used by every

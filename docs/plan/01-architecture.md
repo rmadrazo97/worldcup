@@ -348,6 +348,26 @@ Cache keys are deterministic strings derived from the request shape, so two clie
 3. **Soft grace covers upstream outages.** If balldontlie is down and we're beyond `expires_at` but inside `expires_at + grace`, we serve the stale doc and tag the response `source: "cache-stale"`. Beyond grace, we attempt upstream; if it fails too, we still return the stale doc but tag `source: "cache-stale-degraded"` so the UI can show a banner.
 4. **The client never sets TTL.** All TTLs are server-side constants in `functions/src/cache/ttl.ts`.
 
+### Freeze rule (permanent archive)
+
+The plan's hard requirement is that **once a tournament is over, all match data lives on our side forever** — independent of balldontlie's continued operation, tier policy, or even the upstream API existing at all. We achieve this with a `_frozen` boolean on every Firestore doc.
+
+| Trigger                                                                           | Effect                                                                                                |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Match transitions to `FT` and 24 h passes (late-stat-correction grace)            | Set `_frozen: true` on `matches/{matchId}` and all `matchDetails/{matchId}/{section}` subdocs.        |
+| Tournament for a `season` is complete (no SCHED or LIVE matches left for 14 days) | Run a one-shot freeze pass over **everything** with `season == X`: teams, standings, venues, players, rosters, lineups, events, stats, momentum, shots, avg_positions, best_players, team_form. |
+| Manual freeze (operator override)                                                 | Same as automatic — useful for retiring legacy seasons immediately.                                   |
+
+When a Function reads a doc with `_frozen: true`, the cache layer skips the `expires_at` check entirely, **never calls upstream**, and returns the cached payload directly. Cost: zero upstream requests for any historical season after freeze. Storage: Firestore reads only (cheap and indefinite — Firestore docs persist until explicitly deleted).
+
+The freeze is enforced by:
+
+- The cache reader (`cache.getOrSet`): `if (doc._frozen) return doc; // bypass TTL`.
+- The `freezeCompletedSeasons` scheduler (defined in `03-backend-functions.md` § 8.4) — runs daily 05:00 UTC.
+- A unit test asserting `getOrSet` never invokes the upstream client when the doc is frozen, even if `expires_at` is in the past.
+
+Operational implication: there is **no automatic un-freeze**. If we discover a data correction needed in a frozen season, an operator manually clears `_frozen` on the affected doc, the cache picks up the change on next read, and re-freezes on the next daily pass. Document this in the runbook (`05-secrets-ops.md` § 12).
+
 ---
 
 ## 7. Scheduler design
@@ -388,7 +408,11 @@ Alternative considered: keep a single 30 s cron always. Rejected — that's ~86k
 
 ## 8. Rate limit & quota handling
 
-balldontlie's published limit on the free tier is **60 req/min**. GOAT tier limit is **not publicly documented**; the engineering assumption is **300 req/min** — **TBD: verify against the latest balldontlie tier docs before launch.**
+balldontlie's tier limit for the test key we have is **600 req/min**, confirmed via the response headers (`x-ratelimit-limit: 600`, `x-ratelimit-remaining: <n>`, `x-ratelimit-reset: <unix-ts>`) on every call. Our budget logic reads these headers and treats them as the source of truth — the local token bucket is a defensive belt-and-suspenders only. **Verified 2026-05-14 against** `https://api.balldontlie.io/fifa/worldcup/v1/teams`.
+
+The auth header form is `Authorization: <api_key>` (raw token). `Authorization: Bearer <api_key>` also returns 200; we standardize on the raw form to match the OpenAPI doc. `X-API-Key` and `Authorization: token <key>` both return 401 — don't use them.
+
+Array query parameters use the PHP-style `param[]=v1&param[]=v2` encoding. Comma-separated (`seasons=2018,2022`) returns an empty data array silently — verified, do not use.
 
 ### Token bucket
 
@@ -397,12 +421,16 @@ A single Firestore doc at `meta/rate_budget` holds:
 ```
 {
   tokens: number,           // current bucket level
-  capacity: number,         // max (e.g. 300)
-  refill_per_sec: number,   // (e.g. 5.0 for 300/min)
+  capacity: number,         // 600 (verified from x-ratelimit-limit header)
+  refill_per_sec: number,   // 10.0 for 600/min
   last_refill: Timestamp,
+  last_remaining: number,   // most recent x-ratelimit-remaining we saw
+  last_reset_at: Timestamp, // most recent x-ratelimit-reset
   window_start: Timestamp
 }
 ```
+
+After each upstream call, the Function reads the `x-ratelimit-*` response headers and reconciles them into `meta/rate_budget` — these are the source of truth and the local bucket is the conservative pre-check.
 
 Before any upstream call, the Function runs a Firestore transaction:
 
@@ -587,7 +615,7 @@ Mitigation if listener cost spikes:
 | # | Question                                                              | Recommendation                                                                  | Owner       |
 | - | --------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------- |
 | 1 | `httpsCallable` vs `onRequest` + CORS for the public API?             | **Callable.** Built-in App Check, no manual CORS, typed errors.                 | platform    |
-| 2 | Verify GOAT-tier rate limit (assumed 300/min).                        | Email balldontlie support before launch; update §8 with the actual number.      | platform    |
+| 2 | ~~Verify GOAT-tier rate limit (assumed 300/min).~~ **RESOLVED 2026-05-14:** test key returns `x-ratelimit-limit: 600` on every response. Source of truth is the live header, not a constant. §8 updated. | done | platform |
 | 3 | Do we surface odds and futures in v1?                                 | Skip for v1; cache stubs are designed so we can flip them on later.             | product     |
 | 4 | Should historical seasons (2018/2022) get a scheduler?                | No. One-shot fetch + 24 h cache is enough for read-only historical browsing.    | platform    |
 | 5 | reCAPTCHA Enterprise key cost / setup ownership?                      | See `05-secrets-ops.md`. Owner: ops.                                            | ops         |

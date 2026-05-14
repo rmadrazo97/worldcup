@@ -826,6 +826,49 @@ Use this verbatim during an incident. Page the on-call rotation if MTTR > 15 min
 4. Temporarily widen App Check TTL to 4 h while diagnosing:
    Firebase Console → App Check → Web → TTL. Revert after.
 
+### Incident: late stat correction needs to land in a frozen season
+
+Background: `freezeCompletedSeasons` (see `03-backend-functions.md` § 8.4) pins all docs for a
+finished tournament with `_frozen: true`. Cache reads short-circuit upstream when `_frozen`. This
+gives us the "data lives on our side forever" guarantee but blocks corrections.
+
+1. Identify the doc(s) affected (e.g. `matches/1000`, `matchDetails/1000/events`).
+2. From a workstation with `firebase` CLI + appropriate IAM:
+   ```bash
+   cd functions
+   npx tsx scripts/unfreeze.ts --doc matches/1000 --doc matchDetails/1000/events
+   ```
+   The script clears `_frozen` and resets `_expiresAt` to a near-term TTL on the listed docs.
+3. The next read fetches from upstream and writes through normally. Verify in Firestore that the
+   payload reflects the correction.
+4. The next nightly `freezeCompletedSeasons` pass re-freezes the doc. If you need it to stay
+   un-frozen long-term (rare — e.g. an actively-corrected match), set
+   `meta/freezeOverride/{docPath} = { frozen_disabled: true }`. Document the override in this
+   runbook with a reason.
+
+Never delete a frozen doc to "force a refresh" — you'll lose the cached payload if upstream is
+unreachable. Always go through `unfreeze.ts`.
+
+### Incident: upstream balldontlie API permanently offline
+
+If balldontlie shuts down or revokes our access for a non-recoverable reason, the freeze rule
+keeps every completed season fully readable from Firestore. Steps:
+
+1. Confirm scope: which seasons are affected? `gcloud firestore export` and inspect.
+2. Suspend the schedulers to stop the 401-spam in logs:
+   ```bash
+   gcloud scheduler jobs pause refreshLiveMatches --location=us-central1
+   gcloud scheduler jobs pause refreshFixtures --location=us-central1
+   gcloud scheduler jobs pause refreshStandings --location=us-central1
+   # keep freezeCompletedSeasons running — it operates only on cached docs.
+   ```
+3. Set `meta/upstream.disabled: true`. Cache layer reads this and skips upstream calls entirely,
+   returning whatever is in Firestore (even past `_expiresAt`).
+4. If 2026 is in-progress at the time, mark its current state frozen via the unfreeze override
+   inverse: `npx tsx scripts/freeze-now.ts --season 2026 --reason manual`.
+5. Surface a "data archive — tournament concluded" banner in the UI (feature flag in
+   `meta/uiFlags.archive_mode`).
+
 ---
 
 ## 13. Privacy & compliance

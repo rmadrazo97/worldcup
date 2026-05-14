@@ -93,7 +93,7 @@ jobs:
       - name: Deploy Functions
         run: |
           cd functions
-          npx firebase deploy \
+          npx -p firebase-tools@latest firebase deploy \
             --only functions \
             --project worldcup-live-scores-2026 \
             --non-interactive \
@@ -134,7 +134,7 @@ jobs:
 
       - name: Deploy Firestore rules + indexes
         run: |
-          npx firebase deploy \
+          npx -p firebase-tools@latest firebase deploy \
             --only firestore:rules,firestore:indexes \
             --project worldcup-live-scores-2026 \
             --non-interactive \

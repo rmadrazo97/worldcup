@@ -799,133 +799,286 @@ html, body {
   flex-direction: column;
   gap: 8px;
 }
+/* ── Match card: centered, premium, score-prominent.
+ *
+ * Layout is column-stacked (eyebrow → body → optional footer). The body is a
+ * 3-column grid where home and away teams "lean in" to a centered score.
+ * Cards never stretch ugly at wide viewports — the inner body has its own
+ * max-width so two crests + score always sit close together.
+ */
 .match-card {
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 16px 22px;
-  display: grid;
-  grid-template-columns: 90px 1fr 92px 1fr 110px;
-  align-items: center;
-  cursor: pointer;
-  transition:
-    background 160ms var(--ease),
-    border-color 160ms var(--ease),
-    transform 160ms var(--ease);
-  position: relative;
-  gap: 10px 14px;
-}
-.match-card:hover {
-  background: var(--paper-hover);
-  border-color: var(--line-strong);
-}
-.match-card .col-kickoff {
+  border-radius: var(--r-lg);
+  padding: 18px 22px 20px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+  overflow: hidden;
+  transition:
+    background 200ms var(--ease),
+    border-color 200ms var(--ease),
+    transform 220ms var(--ease),
+    box-shadow 240ms var(--ease);
 }
-.match-card .kickoff-time {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--ink-0);
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+.match-card::before {
+  /* Hairline accent shaft at the top — soft on rest, vivid on hover/live. */
+  content: "";
+  position: absolute;
+  top: 0; left: 22px; right: 22px;
+  height: 2px;
+  border-radius: 0 0 4px 4px;
+  background: transparent;
+  transition: background 220ms var(--ease);
 }
-.match-card .kickoff-date {
-  font-size: 11px;
-  color: var(--ink-2);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+.match-card:hover {
+  background: var(--paper);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px -28px rgba(25, 34, 127, 0.30);
 }
-.match-card.is-live .kickoff-time { color: var(--live); }
+.match-card:hover::before {
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.match-card.is-live {
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(130, 177, 255, 0.10), transparent 60%),
+    var(--paper);
+  border-color: rgba(16, 185, 129, 0.32);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.10) inset;
+}
+.match-card.is-live::before {
+  background: linear-gradient(90deg, transparent, var(--live), transparent);
+}
+.match-card.is-ft { /* keep neutral — full time should feel settled */ }
+.match-card.is-sched { background: var(--paper); }
+.match-card.is-off { opacity: 0.85; }
 
-.match-team {
+/* ── Eyebrow row — context (group/stage) + status pill ── */
+.mc-eyebrow {
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-width: 0;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 22px;
 }
-.match-team.away { flex-direction: row-reverse; text-align: right; }
-.match-team .crest {
-  width: 32px; height: 32px;
+.mc-context {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.mc-status {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.mc-status.is-live {
+  color: #fff;
+  background: var(--live);
+  border-color: var(--live);
+  box-shadow: 0 0 0 4px var(--live-glow-2);
+}
+.mc-status.is-ft {
+  color: var(--ink-1);
+  background: var(--paper-hover);
+  border-color: var(--line);
+}
+.mc-status.is-sched {
+  color: var(--ink-1);
+  background: var(--paper-hover);
+  border-color: var(--line);
+}
+.mc-status.is-off {
+  color: var(--ink-2);
+}
+.mc-status-dot {
+  width: 6px; height: 6px;
   border-radius: 50%;
-  background: var(--canvas-2);
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.4);
+  animation: now-pulse 2s ease-in-out infinite;
+}
+
+/* ── Body: home team · score · away team ── */
+.mc-body {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 4px 0 2px;
+}
+.mc-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-align: center;
+}
+.mc-crest {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: var(--canvas);
+  border: 1px solid var(--line);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
-  box-shadow: inset 0 0 0 1px var(--line);
+  transition: transform 220ms var(--ease), border-color 220ms var(--ease);
+  box-shadow: 0 6px 16px -10px rgba(25, 34, 127, 0.18);
 }
-.match-team .crest img {
-  width: 22px; height: 15px; object-fit: cover; border-radius: 1px;
+.mc-crest img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
 }
-.match-team .name {
+.match-card:hover .mc-team .mc-crest { transform: translateY(-1px); }
+.mc-team.is-winner .mc-crest { border-color: var(--accent); }
+.mc-team.is-loser .mc-crest { opacity: 0.55; }
+
+.mc-name {
   font-size: 15px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: -0.014em;
   color: var(--ink-0);
-  white-space: nowrap;
+  line-height: 1.2;
+  max-width: 16ch;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.match-team.dim .name { color: var(--ink-2); }
-.match-team .name-mobile { display: none; }
+.mc-short { display: none; }
+.mc-team.is-loser .mc-name { color: var(--ink-2); font-weight: 500; }
 
-.score-cell {
+/* ── Centered score ── */
+.mc-score {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  min-width: 110px;
 }
-.score-cell .nums {
-  font-family: var(--font-mono);
-  font-size: 20px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  color: var(--ink-0);
-  font-variant-numeric: tabular-nums;
-  display: flex;
-  gap: 8px;
+.mc-score-nums {
+  display: inline-flex;
   align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 32px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ink-0);
 }
-.score-cell .nums .sep { color: var(--ink-3); font-weight: 400; }
-.score-cell.live .nums { color: var(--ink-0); }
-.score-cell.vs {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--ink-2);
-  font-weight: 500;
-  letter-spacing: 0.02em;
+.mc-num.is-win { color: var(--ink-0); }
+.mc-num.is-loss { color: var(--ink-3); font-weight: 500; }
+.mc-num-sep {
+  color: var(--ink-3);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1;
+  transform: translateY(-1px);
 }
-.score-cell.vs .nums { font-size: 14px; color: var(--ink-2); letter-spacing: -0.005em; }
-.score-cell .sub {
+.mc-score-sub {
   font-family: var(--font-mono);
   font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.mc-pens {
+  font-family: var(--font-mono);
+  font-size: 11px;
   color: var(--ink-2);
   letter-spacing: 0.04em;
+}
+.match-card.is-live .mc-score-nums { color: var(--ink-0); }
+.match-card.is-live .mc-score-sub { color: var(--live); }
+
+/* ── Scheduled "VS" layout — kickoff time over VS over date ── */
+.mc-score.is-vs .mc-vs-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink-0);
+  line-height: 1;
+}
+.mc-score.is-vs .mc-vs-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--ink-3);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+}
+.mc-score.is-vs .mc-vs-date {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-.score-cell.live .sub {
-  color: var(--live);
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.score-cell.live .sub::before {
-  content: "";
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--live);
-  box-shadow: 0 0 6px var(--live-glow);
-  animation: live-glow 1.6s ease-out infinite;
+  color: var(--ink-2);
 }
 
-.col-status {
-  display: flex;
-  justify-content: flex-end;
+/* ── Compact (mobile / narrow) ── */
+@media (max-width: 560px) {
+  .match-card { padding: 16px 16px 18px; gap: 12px; }
+  .match-card::before { left: 16px; right: 16px; }
+  .mc-body { gap: 10px; padding: 2px 0 0; }
+  .mc-crest { width: 48px; height: 48px; }
+  .mc-name {
+    font-size: 13.5px;
+    max-width: 11ch;
+  }
+  .mc-score { min-width: 88px; }
+  .mc-score-nums { font-size: 28px; gap: 8px; }
+  .mc-num-sep { font-size: 22px; }
+  .mc-score.is-vs .mc-vs-time { font-size: 16px; }
 }
+
+/* ── Legacy skeleton classes (kept so MatchCardSkeleton renders without churn) ── */
+.match-card .col-kickoff,
+.match-card .col-status { display: none; }
+.match-card .match-team,
+.match-card .score-cell { display: none; }
+.skel-match.match-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.skel-match .col-kickoff,
+.skel-match .col-status,
+.skel-match .match-team,
+.skel-match .score-cell { display: flex; }
+.skel-match .col-kickoff { flex-direction: row; gap: 8px; }
+.skel-match .col-status { justify-content: flex-end; margin-top: 0; }
+
 .tag {
   font-family: var(--font-mono);
   font-size: 10.5px;

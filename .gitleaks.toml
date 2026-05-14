@@ -3,7 +3,8 @@
 # We extend the upstream default rules (AWS keys, GCP service account JSON,
 # Slack tokens, private keys, etc.) and add one project-specific rule for the
 # balldontlie API key, which is shaped as a UUID v4 (e.g.
-# d7424a3d-16ac-4f73-89a2-224816b9248c).
+# xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx, never committed — stored in Google
+# Secret Manager as BALLDONTLIE_API_KEY).
 #
 # Rationale for the allowlist:
 #   - functions/test/fixtures/upstream/**  : captured upstream JSON responses;

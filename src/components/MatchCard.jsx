@@ -1,25 +1,38 @@
 import { Link } from 'react-router-dom'
-import { CountryCrest, TeamName } from './Flag.jsx'
+import { CountryCrest } from './Flag.jsx'
 import { formatShortDate } from '../api/clock.js'
 import { track } from '../api/analytics.js'
 import { useTeam } from '../api/providers.jsx'
+
+const STAGE_LABEL = {
+  group: null,                // handled separately so we can append " · MD"
+  r32: 'Round of 32',
+  r16: 'Round of 16',
+  qf:  'Quarter-final',
+  sf:  'Semi-final',
+  final: 'Final',
+  third_place: 'Third place',
+}
+
+function contextLabel(match) {
+  if (match.stage && match.stage !== 'group') {
+    return STAGE_LABEL[match.stage] || match.stage_label || 'Knockout'
+  }
+  if (match.group) {
+    return match.md ? `Group ${match.group} · MD ${match.md}` : `Group ${match.group}`
+  }
+  return match.stage_label || ''
+}
 
 function kickoffTime(iso) {
   if (!iso) return ''
   try {
     return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  } catch {
-    return ''
-  }
+  } catch { return '' }
 }
-
 function shortDate(iso) {
   if (!iso) return ''
-  try {
-    return formatShortDate(new Date(iso))
-  } catch {
-    return ''
-  }
+  try { return formatShortDate(new Date(iso)) } catch { return '' }
 }
 
 export default function MatchCard({ match, to, showDate = false }) {
@@ -36,15 +49,25 @@ export default function MatchCard({ match, to, showDate = false }) {
 
   const kickoff = kickoffTime(match.kickoff_iso)
   const dateLabel = shortDate(match.kickoff_iso)
-
-  const liveLabel = match.minute || (isHT ? 'HT' : 'Live')
-
-  const topLabel = isSched || isPP || isCXL
-    ? (isPP ? 'Postponed' : isCXL ? 'Cancelled' : kickoff)
-    : (isLive || isHT ? liveLabel : 'FT')
+  const context = contextLabel(match)
 
   const homeTeam = useTeam(match.home)
   const awayTeam = useTeam(match.away)
+
+  const liveLabel = match.minute || (isHT ? 'HT' : 'LIVE')
+  const statusBadge =
+    isLive || isHT ? (isHT ? 'HT' : liveLabel)
+    : isFT         ? 'FT'
+    : isPP         ? 'PP'
+    : isCXL        ? 'CXL'
+    : kickoff
+
+  const subline =
+    isLive || isHT ? (isHT ? 'Half time' : 'Live now')
+    : isFT  ? (isDraw ? 'Full time · Draw' : 'Full time')
+    : isPP  ? 'Postponed'
+    : isCXL ? 'Cancelled'
+    : showDate || !context ? dateLabel : null
 
   const ariaLabel = (isLive || isHT)
     ? `${homeTeam?.name || match.home} ${match.hs} ${awayTeam?.name || match.away} ${match.as}, ${isHT ? 'half time' : `live, minute ${match.minute || ''}`}`
@@ -56,6 +79,7 @@ export default function MatchCard({ match, to, showDate = false }) {
     + (isLive || isHT ? ' is-live' : '')
     + (isFT ? ' is-ft' : '')
     + (isSched ? ' is-sched' : '')
+    + ((isPP || isCXL) ? ' is-off' : '')
 
   const handleClick = () => {
     track('select_match', { match_id: match.id, status: match.status, group: match.group })
@@ -63,43 +87,54 @@ export default function MatchCard({ match, to, showDate = false }) {
 
   const inner = (
     <>
-      <div className="col-kickoff">
-        <span className="kickoff-time">{topLabel}</span>
-        <span className="kickoff-date">{showDate ? dateLabel : `Group ${match.group}`}</span>
-      </div>
-      <div className={'match-team home' + (awayWon ? ' dim' : '') + (homeWon ? ' winner' : '')}>
-        <CountryCrest team={match.home} />
-        <TeamName team={match.home} dim={awayWon} />
-        {homeWon && <WinnerMark />}
-      </div>
-      <div className={'score-cell' + (isLive || isHT ? ' live' : (isSched || isPP || isCXL) ? ' vs' : '')}>
-        {(isSched || isPP || isCXL) ? (
-          <>
-            <span className="nums">vs</span>
-            <span className="sub">{isPP ? 'Postponed' : isCXL ? 'Cancelled' : dateLabel}</span>
-          </>
-        ) : (
-          <>
-            <span className="nums">
-              <span className={homeWon ? 'w' : awayWon ? 'l' : ''}>{match.hs}</span>
-              <span className="sep">–</span>
-              <span className={awayWon ? 'w' : homeWon ? 'l' : ''}>{match.as}</span>
-            </span>
-            <span className="sub">{isLive || isHT ? liveLabel : isDraw ? 'Full time · Draw' : 'Full time'}</span>
-          </>
-        )}
-      </div>
-      <div className={'match-team away' + (homeWon ? ' dim' : '') + (awayWon ? ' winner' : '')}>
-        <CountryCrest team={match.away} />
-        <TeamName team={match.away} dim={homeWon} />
-        {awayWon && <WinnerMark />}
-      </div>
-      <div className="col-status">
-        <span className="tag">
-          {(isLive || isHT) && <><i className="tag-live-dot" aria-hidden="true" /> Group {match.group}</>}
-          {isFT && <>Group {match.group}</>}
-          {(isSched || isPP || isCXL) && <>Group {match.group}</>}
+      <header className="mc-eyebrow">
+        {context && <span className="mc-context">{context}</span>}
+        <span className={
+          'mc-status'
+          + (isLive || isHT ? ' is-live' : '')
+          + (isFT ? ' is-ft' : '')
+          + (isSched ? ' is-sched' : '')
+          + ((isPP || isCXL) ? ' is-off' : '')
+        }>
+          {(isLive || isHT) && <span className="mc-status-dot" aria-hidden="true" />}
+          {statusBadge}
         </span>
+      </header>
+
+      <div className="mc-body">
+        <div className={'mc-team is-home' + (homeWon ? ' is-winner' : awayWon ? ' is-loser' : '')}>
+          <span className="mc-crest"><CountryCrest team={match.home} /></span>
+          <span className="mc-name">{homeTeam?.name || match.home}</span>
+          <span className="mc-short">{homeTeam?.short || match.home}</span>
+        </div>
+
+        <div className={'mc-score' + (isLive || isHT ? ' is-live' : '') + (!isLive && !isHT && !isFT ? ' is-vs' : '')}>
+          {(isSched || isPP || isCXL) ? (
+            <>
+              <div className="mc-vs-time">{isPP ? 'PP' : isCXL ? 'CXL' : kickoff}</div>
+              <div className="mc-vs-label">VS</div>
+              <div className="mc-vs-date">{dateLabel}</div>
+            </>
+          ) : (
+            <>
+              <div className="mc-score-nums">
+                <span className={'mc-num' + (homeWon ? ' is-win' : awayWon ? ' is-loss' : '')}>{match.hs}</span>
+                <span className="mc-num-sep" aria-hidden="true">–</span>
+                <span className={'mc-num' + (awayWon ? ' is-win' : homeWon ? ' is-loss' : '')}>{match.as}</span>
+              </div>
+              {match.pens && (
+                <div className="mc-pens">({match.pens.hs} – {match.pens.as} pens)</div>
+              )}
+              {subline && <div className="mc-score-sub">{subline}</div>}
+            </>
+          )}
+        </div>
+
+        <div className={'mc-team is-away' + (awayWon ? ' is-winner' : homeWon ? ' is-loser' : '')}>
+          <span className="mc-crest"><CountryCrest team={match.away} /></span>
+          <span className="mc-name">{awayTeam?.name || match.away}</span>
+          <span className="mc-short">{awayTeam?.short || match.away}</span>
+        </div>
       </div>
     </>
   )
@@ -112,14 +147,4 @@ export default function MatchCard({ match, to, showDate = false }) {
     )
   }
   return <div className={className} aria-label={ariaLabel}>{inner}</div>
-}
-
-function WinnerMark() {
-  return (
-    <span className="winner-mark" aria-label="Winner" title="Winner">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="20 6 9 17 4 12"/>
-      </svg>
-    </span>
-  )
 }

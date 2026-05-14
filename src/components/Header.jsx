@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 export default function Header({ view, onBack, searchOpen, setSearchOpen, query, onQuery }) {
   const inputRef = useRef(null)
+  const location = useLocation()
+  const onPlayoff = location.pathname.startsWith('/playoff')
 
   useEffect(() => {
     if (searchOpen) {
@@ -45,6 +47,20 @@ export default function Header({ view, onBack, searchOpen, setSearchOpen, query,
             <span className="brand-year">2026</span>
           </Link>
           <div className="header-right">
+            {!onPlayoff && (
+              <Link to="/playoff" className="header-playoff-link" aria-label="Playoffs bracket">
+                <span className="hpl-mark" aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 4h12v6a6 6 0 0 1-12 0V4z"/>
+                    <path d="M6 6H3v3a4 4 0 0 0 4 4"/>
+                    <path d="M18 6h3v3a4 4 0 0 1-4 4"/>
+                    <path d="M10 20h4"/>
+                    <path d="M12 16v4"/>
+                  </svg>
+                </span>
+                <span className="hpl-text">Playoffs</span>
+              </Link>
+            )}
             <div className={"search-wrap" + (searchOpen ? " is-open" : "")}>
               <input
                 ref={inputRef}

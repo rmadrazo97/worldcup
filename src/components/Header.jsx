@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import SeasonPicker from './SeasonPicker.jsx'
 
 export default function Header({ view, onBack, searchOpen, setSearchOpen, query, onQuery }) {
   const inputRef = useRef(null)
@@ -41,11 +42,11 @@ export default function Header({ view, onBack, searchOpen, setSearchOpen, query,
               </svg>
             </button>
           ) : null}
-          <Link to="/" className="brand" aria-label="World Cup 2026 — home">
+          <Link to="/" className="brand" aria-label="World Cup — home">
             <span className="brand-mark" aria-hidden="true">W</span>
             <span>World Cup</span>
-            <span className="brand-year">2026</span>
           </Link>
+          <SeasonPicker />
           <div className="header-right">
             {!onPlayoff && (
               <Link to="/playoff" className="header-playoff-link" aria-label="Playoffs bracket">

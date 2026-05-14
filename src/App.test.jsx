@@ -4,11 +4,13 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 // Mock the Firebase + data layer so tests don't touch the network.
 vi.mock('./api/client.js', () => ({
-  initClient: () => ({ app: null, auth: null, functions: null, db: null, appCheck: null }),
-  getClient: () => ({ app: null, auth: null, functions: null, db: null, appCheck: null }),
+  initClient: () => ({ app: null, auth: null, functions: null, db: null, appCheck: null, analytics: null }),
+  getClient: () => ({ app: null, auth: null, functions: null, db: null, appCheck: null, analytics: null }),
   callable: () => () => Promise.resolve({ data: { data: [] } }),
   unwrapCallable: () => Promise.resolve({ data: [] }),
   onAuthReady: () => Promise.resolve(null),
+  track: () => {},
+  setAnalyticsUserProps: () => {},
 }))
 
 const mockTeams = [

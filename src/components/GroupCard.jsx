@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { CountryCrest } from './Flag.jsx'
 import { useTeams } from '../api/providers.jsx'
+import { track } from '../api/analytics.js'
 
 export default function GroupCard({ group, standings, groupMatches }) {
   const { teams } = useTeams()
@@ -19,6 +20,8 @@ export default function GroupCard({ group, standings, groupMatches }) {
     <Link
       className={'group-card' + (hasLive ? ' has-live' : '')}
       to={`/group/${group.id}`}
+      aria-label={`Group ${group.id} — ${stateLabel}`}
+      onClick={() => track('select_group', { group_id: group.id })}
     >
       <div className="group-head">
         <div className="group-id-block">

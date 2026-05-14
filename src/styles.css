@@ -112,14 +112,6 @@ html, body {
   backdrop-filter: saturate(180%) blur(24px);
   -webkit-backdrop-filter: saturate(180%) blur(24px);
 }
-.header-inner {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  height: 72px;
-  position: relative;
-  min-width: 0;
-}
 .brand {
   display: flex;
   align-items: baseline;
@@ -166,94 +158,218 @@ html, body {
 }
 .brand-back:hover { background: var(--paper-hover); transform: translateX(-1px); }
 
-.header-right {
-  margin-left: auto;
+/* Header layout: brand on the left, centered global search, actions on the right. */
+.header-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  height: 72px;
+  position: relative;
+  min-width: 0;
+}
+.header-left {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
 
-/* Expanding search */
-.search-wrap {
+/* ── Centered global search pill ── */
+.search-center {
+  justify-self: center;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  justify-content: center;
+}
+.search-pill {
+  --pill-bg: var(--paper);
+  --pill-bd: var(--line);
   position: relative;
   display: flex;
   align-items: center;
-  height: 40px;
-  flex-shrink: 0;
+  gap: 10px;
+  height: 44px;
+  width: 100%;
+  min-width: 0;
+  padding: 0 8px 0 14px;
+  background: var(--pill-bg);
+  border: 1px solid var(--pill-bd);
+  border-radius: var(--r-pill);
+  cursor: text;
+  transition:
+    background 180ms var(--ease),
+    border-color 180ms var(--ease),
+    box-shadow 220ms var(--ease),
+    transform 220ms var(--ease);
+  box-shadow:
+    0 1px 0 rgba(25, 34, 127, 0.02),
+    0 8px 24px -18px rgba(25, 34, 127, 0.18);
 }
-.search-btn {
+.search-pill::before {
+  /* Soft, slow-pulsing halo to make the empty input feel inviting. */
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(120deg,
+    rgba(130, 177, 255, 0.0) 0%,
+    rgba(130, 177, 255, 0.18) 35%,
+    rgba(180, 202, 244, 0.0) 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 320ms var(--ease);
+  z-index: -1;
+}
+.search-pill:hover {
+  border-color: var(--line-strong);
+  background: var(--paper-hover);
+}
+.search-center.is-active .search-pill,
+.search-pill:focus-within {
+  border-color: var(--cobalt);
+  background: var(--paper);
+  box-shadow:
+    0 0 0 4px rgba(130, 177, 255, 0.22),
+    0 12px 32px -18px rgba(25, 34, 127, 0.30);
+}
+.search-center.is-active .search-pill::before,
+.search-pill:focus-within::before {
+  opacity: 1;
+}
+.search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+  flex-shrink: 0;
+  transition: color 180ms var(--ease);
+}
+.search-pill:hover .search-icon,
+.search-center.is-active .search-icon,
+.search-pill:focus-within .search-icon {
+  color: var(--cobalt);
+}
+.search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--ink-0);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  padding: 0;
+}
+.search-input::placeholder {
+  color: var(--ink-2);
+  transition: color 180ms var(--ease);
+}
+.search-pill:focus-within .search-input::placeholder { color: var(--ink-3); }
+
+/* ⌘K hint */
+.search-kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  flex-shrink: 0;
+  pointer-events: none;
+  opacity: 0.95;
+  transition: opacity 180ms var(--ease);
+}
+.search-center.is-active .search-kbd,
+.search-pill:focus-within .search-kbd { opacity: 0; }
+.search-kbd kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 22px;
+  padding: 0 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  line-height: 1;
+}
+
+/* Clear button (appears once there is a query) */
+.search-clear {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--canvas);
+  color: var(--ink-1);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 160ms var(--ease), color 160ms var(--ease);
+}
+.search-clear:hover { background: var(--paper-hover); color: var(--ink-0); }
+
+/* Mobile search button — hidden on desktop, shown when the centered pill is hidden. */
+.search-mobile-btn {
+  appearance: none;
   width: 40px; height: 40px;
   border-radius: 50%;
   background: var(--paper);
   border: 1px solid var(--line);
-  display: inline-flex;
+  display: none;
   align-items: center;
   justify-content: center;
   color: var(--ink-0);
   cursor: pointer;
   transition: background 160ms var(--ease), border-color 160ms var(--ease);
-  position: absolute;
-  right: 0;
-  top: 0;
-  z-index: 2;
 }
-.search-btn:hover { background: var(--paper-hover); }
-.search-btn.is-open { background: var(--ink-0); color: #fff; border-color: var(--ink-0); }
+.search-mobile-btn:hover { background: var(--paper-hover); }
 
-.search-input {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 40px;
-  width: 40px;
-  padding: 0 48px 0 18px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  color: var(--ink-0);
-  font-family: var(--font-sans);
-  font-size: 14px;
-  letter-spacing: -0.01em;
-  outline: none;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    width 360ms var(--ease-out),
-    opacity 240ms var(--ease) 80ms,
-    border-color 160ms var(--ease);
+@media (max-width: 720px) {
+  .header-inner {
+    /* On phones, drop the centered search row — promote a button into the right cluster. */
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .search-center { display: none; }
+  .search-mobile-btn { display: inline-flex; }
+  /* Trim brand text to "World Cup" only — drop the year on very narrow screens. */
+  .brand-year { display: none; }
+  .brand-text { font-size: 15px; }
 }
-.search-wrap.is-open .search-input {
-  width: 340px;
-  opacity: 1;
-  pointer-events: auto;
-  border-color: var(--line-strong);
-}
-.search-wrap.is-open .search-input:focus {
-  border-color: var(--cobalt);
-  box-shadow: 0 0 0 4px rgba(130, 177, 255, 0.25);
-}
-.search-input::placeholder { color: var(--ink-2); }
 
-.kbd {
-  position: absolute;
-  right: 52px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  color: var(--ink-2);
-  background: var(--canvas);
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  padding: 2px 6px;
-  line-height: 1;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 160ms var(--ease) 200ms;
+@media (max-width: 420px) {
+  .header-inner { gap: 8px; }
+  .header-playoff-link .hpl-text { display: none; }
 }
-.search-wrap.is-open .kbd { opacity: 1; }
+
+/* When mobile search is "open", the centered pill becomes a full-width overlay. */
+@media (max-width: 720px) {
+  .search-center.is-active {
+    display: flex;
+    position: absolute;
+    left: 0; right: 0;
+    top: 12px;
+    padding: 0 18px;
+    z-index: 5;
+    max-width: none;
+  }
+}
 
 /* ═══════════════════ Welcome / page intro ═══════════════════ */
 .intro {

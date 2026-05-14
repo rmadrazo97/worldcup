@@ -24,6 +24,14 @@
         wait_for_update:    500
       });
     </script>
+    <!--
+      Google AdSense site verification + ad code loader. The publisher ID
+      is public (appears in every rendered ad unit). Loading the tag here
+      (rather than only from JS) ensures AdSense's site-review crawler
+      finds it even before any React code runs.
+    -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3627469464584624"
+         crossorigin="anonymous"></script>
   </head>
   <body>
     <div id="root"></div>

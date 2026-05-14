@@ -58,7 +58,7 @@ identical across environments; production sets the IDs.
 
 ```
 VITE_ADS_ENABLED=true                # master kill switch
-VITE_ADSENSE_CLIENT_ID=              # ca-pub-XXXXXXXXXXXXXXXX after approval
+VITE_ADSENSE_CLIENT_ID=              # optional override; default baked into the build
 VITE_ADSENSE_SLOT_HOME=              # 10-digit numeric slot ID
 VITE_ADSENSE_SLOT_GROUP=
 VITE_ADSENSE_SLOT_MATCH=
@@ -67,6 +67,22 @@ VITE_ADSENSE_SLOT_MATCH=
 Every var is public (`VITE_` prefix) — these are not secrets; the slot
 IDs are visible in the rendered `<ins>` attributes. Setting any one
 slot ID to empty disables just that placement.
+
+### Publisher ID is baked in
+
+The production publisher ID (`ca-pub-3627469464584624`) is hardcoded in
+two places that must stay in sync:
+
+- `index.html` ships a `<script async src="…adsbygoogle.js?client=…"
+  crossorigin="anonymous">` tag — AdSense's site-review crawler does not
+  execute JS, so the tag must be present in the raw HTML response.
+- `src/api/ads.js` defines `DEFAULT_CLIENT_ID` used by `adsConfig.clientId`
+  whenever `VITE_ADSENSE_CLIENT_ID` is unset, so `<AdSlot/>`'s
+  `data-ad-client` attribute matches the loaded script.
+
+`loadAdsScript()` detects any existing `adsbygoogle.js` script in the
+document and skips a duplicate injection — so the hardcoded tag and a
+defensive code-side load are safe to coexist.
 
 ### Kill switch
 

@@ -1249,6 +1249,15 @@ html, body {
   max-width: 540px;
   margin: 10px auto 0;
 }
+.footer-version {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  opacity: 0.6;
+  letter-spacing: 0.02em;
+  cursor: help;
+}
 
 /* ═══════════════════ Mobile ═══════════════════ */
 @media (max-width: 720px) {

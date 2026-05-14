@@ -75,30 +75,6 @@ jobs:
           name: web-dist-${{ github.event.pull_request.number }}
           path: dist
 
-      # The FIREBASE_SERVICE_ACCOUNT secret is stored base64-encoded (so it
-      # fits cleanly in a single GitHub secret line). FirebaseExtended's
-      # action expects the raw JSON, so decode here and pass via a step
-      # output. Every line of the decoded JSON is masked so it can't leak
-      # into logs if a later step echoes the output by accident.
-      - name: Decode Firebase service account
-        id: sa
-        env:
-          SA_B64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          if [ -z "${SA_B64:-}" ]; then
-            echo "::error::FIREBASE_SERVICE_ACCOUNT secret is empty."
-            exit 1
-          fi
-          decoded=$(printf '%s' "$SA_B64" | base64 -d)
-          while IFS= read -r line; do
-            [ -n "$line" ] && echo "::add-mask::$line"
-          done <<< "$decoded"
-          {
-            echo 'json<<SA_EOF'
-            printf '%s\n' "$decoded"
-            echo 'SA_EOF'
-          } >> "$GITHUB_OUTPUT"
-
       # Cloud Functions are intentionally NOT deployed from the preview workflow.
       # Firebase Hosting preview channels share the same Functions deployment as
       # production (preview channels rewrite to the prod backend). Deploying
@@ -115,7 +91,8 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ steps.sa.outputs.json }}
+          # Secret is stored as raw JSON — pass straight through.
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: worldcup-live-scores-2026
           channelId: pr-${{ github.event.pull_request.number }}
           expires: 7d

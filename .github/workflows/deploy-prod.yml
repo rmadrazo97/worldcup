@@ -129,7 +129,7 @@ jobs:
             exit 1
           fi
           mkdir -p "$RUNNER_TEMP/firebase"
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" | base64 -d > "$RUNNER_TEMP/firebase/sa.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase/sa.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase/sa.json" >> "$GITHUB_ENV"
 
       - name: Deploy Firestore rules + indexes

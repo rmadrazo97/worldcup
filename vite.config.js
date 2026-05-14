@@ -1,9 +1,32 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite'
+import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Inline build identifiers — package.json version + git short SHA. These
+// are baked into the bundle so the running site can tell users (and
+// support) exactly which build they're looking at.
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
+const gitShortSha = (() => {
+  // CI: GITHUB_SHA is set by GitHub Actions even when the checkout depth is
+  // shallow. Locally: fall back to `git rev-parse`. If neither works (e.g.
+  // building a tarball with no git history), report "dev".
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7)
+  try { return execSync('git rev-parse --short HEAD').toString().trim() } catch { return 'dev' }
+})()
+const buildTime = new Date().toISOString()
+
 export default defineConfig({
+  define: {
+    __APP_VERSION__:    JSON.stringify(pkg.version),
+    __APP_COMMIT__:     JSON.stringify(gitShortSha),
+    __APP_BUILD_TIME__: JSON.stringify(buildTime),
+  },
   test: {
     environment: 'jsdom',
     globals: true,

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 
 export default function Header({ view, onBack, searchOpen, setSearchOpen, query, onQuery }) {
   const inputRef = useRef(null)
@@ -32,23 +33,23 @@ export default function Header({ view, onBack, searchOpen, setSearchOpen, query,
       <div className="shell">
         <div className="header-inner">
           {view === "detail" ? (
-            <button className="brand-back" onClick={onBack} aria-label="Back">
+            <button className="brand-back" onClick={onBack} aria-label="Back" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m15 18-6-6 6-6"/>
               </svg>
             </button>
           ) : null}
-          <div className="brand">
+          <Link to="/" className="brand" aria-label="World Cup 2026 — home">
             <span className="brand-mark" aria-hidden="true">W</span>
             <span>World Cup</span>
             <span className="brand-year">2026</span>
-          </div>
+          </Link>
           <div className="header-right">
             <div className={"search-wrap" + (searchOpen ? " is-open" : "")}>
               <input
                 ref={inputRef}
                 className="search-input"
-                type="text"
+                type="search"
                 placeholder="Search teams, groups, venues…"
                 value={query}
                 onChange={(e) => onQuery(e.target.value)}
@@ -57,6 +58,7 @@ export default function Header({ view, onBack, searchOpen, setSearchOpen, query,
                 }}
                 autoComplete="off"
                 spellCheck="false"
+                aria-label="Search"
               />
               <span className="kbd" aria-hidden="true">ESC</span>
               <button
@@ -68,7 +70,8 @@ export default function Header({ view, onBack, searchOpen, setSearchOpen, query,
                     setSearchOpen(!searchOpen)
                   }
                 }}
-                aria-label={searchOpen ? "Close search" : "Open search"}
+                aria-label={searchOpen ? (query ? "Clear search" : "Close search") : "Open search (press / or ⌘K)"}
+                type="button"
               >
                 {searchOpen && query ? (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { CountryCrest, TeamName } from './Flag.jsx'
 import { formatShortDate } from '../api/clock.js'
+import { track } from '../api/analytics.js'
+import { useTeam } from '../api/providers.jsx'
 
 function kickoffTime(iso) {
   if (!iso) return ''
@@ -30,6 +32,7 @@ export default function MatchCard({ match, to, showDate = false }) {
 
   const homeWon = isFT && match.hs > match.as
   const awayWon = isFT && match.as > match.hs
+  const isDraw  = isFT && match.hs === match.as
 
   const kickoff = kickoffTime(match.kickoff_iso)
   const dateLabel = shortDate(match.kickoff_iso)
@@ -40,16 +43,34 @@ export default function MatchCard({ match, to, showDate = false }) {
     ? (isPP ? 'Postponed' : isCXL ? 'Cancelled' : kickoff)
     : (isLive || isHT ? liveLabel : 'FT')
 
-  const className = 'match-card' + (isLive || isHT ? ' is-live' : '')
+  const homeTeam = useTeam(match.home)
+  const awayTeam = useTeam(match.away)
+
+  const ariaLabel = (isLive || isHT)
+    ? `${homeTeam?.name || match.home} ${match.hs} ${awayTeam?.name || match.away} ${match.as}, ${isHT ? 'half time' : `live, minute ${match.minute || ''}`}`
+    : isFT
+      ? `${homeTeam?.name || match.home} ${match.hs} ${awayTeam?.name || match.away} ${match.as}, full time${homeWon ? `, ${homeTeam?.name} win` : awayWon ? `, ${awayTeam?.name} win` : ', draw'}`
+      : `${homeTeam?.name || match.home} vs ${awayTeam?.name || match.away}, ${isPP ? 'postponed' : isCXL ? 'cancelled' : `kickoff ${kickoff}`}`
+
+  const className = 'match-card'
+    + (isLive || isHT ? ' is-live' : '')
+    + (isFT ? ' is-ft' : '')
+    + (isSched ? ' is-sched' : '')
+
+  const handleClick = () => {
+    track('select_match', { match_id: match.id, status: match.status, group: match.group })
+  }
+
   const inner = (
     <>
       <div className="col-kickoff">
         <span className="kickoff-time">{topLabel}</span>
         <span className="kickoff-date">{showDate ? dateLabel : `Group ${match.group}`}</span>
       </div>
-      <div className={'match-team home' + (awayWon ? ' dim' : '')}>
+      <div className={'match-team home' + (awayWon ? ' dim' : '') + (homeWon ? ' winner' : '')}>
         <CountryCrest team={match.home} />
         <TeamName team={match.home} dim={awayWon} />
+        {homeWon && <WinnerMark />}
       </div>
       <div className={'score-cell' + (isLive || isHT ? ' live' : (isSched || isPP || isCXL) ? ' vs' : '')}>
         {(isSched || isPP || isCXL) ? (
@@ -60,21 +81,22 @@ export default function MatchCard({ match, to, showDate = false }) {
         ) : (
           <>
             <span className="nums">
-              <span>{match.hs}</span>
+              <span className={homeWon ? 'w' : awayWon ? 'l' : ''}>{match.hs}</span>
               <span className="sep">–</span>
-              <span>{match.as}</span>
+              <span className={awayWon ? 'w' : homeWon ? 'l' : ''}>{match.as}</span>
             </span>
-            <span className="sub">{isLive || isHT ? liveLabel : 'Full time'}</span>
+            <span className="sub">{isLive || isHT ? liveLabel : isDraw ? 'Full time · Draw' : 'Full time'}</span>
           </>
         )}
       </div>
-      <div className={'match-team away' + (homeWon ? ' dim' : '')}>
+      <div className={'match-team away' + (homeWon ? ' dim' : '') + (awayWon ? ' winner' : '')}>
         <CountryCrest team={match.away} />
         <TeamName team={match.away} dim={homeWon} />
+        {awayWon && <WinnerMark />}
       </div>
       <div className="col-status">
         <span className="tag">
-          {(isLive || isHT) && <><i style={{width:6,height:6,borderRadius:6,background:'var(--live)',boxShadow:'0 0 6px var(--live-glow)'}} /> Group {match.group}</>}
+          {(isLive || isHT) && <><i className="tag-live-dot" aria-hidden="true" /> Group {match.group}</>}
           {isFT && <>Group {match.group}</>}
           {(isSched || isPP || isCXL) && <>Group {match.group}</>}
         </span>
@@ -83,7 +105,21 @@ export default function MatchCard({ match, to, showDate = false }) {
   )
 
   if (to) {
-    return <Link to={to} className={className}>{inner}</Link>
+    return (
+      <Link to={to} className={className} aria-label={ariaLabel} onClick={handleClick}>
+        {inner}
+      </Link>
+    )
   }
-  return <div className={className}>{inner}</div>
+  return <div className={className} aria-label={ariaLabel}>{inner}</div>
+}
+
+function WinnerMark() {
+  return (
+    <span className="winner-mark" aria-label="Winner" title="Winner">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </span>
+  )
 }

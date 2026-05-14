@@ -13,6 +13,8 @@ import { LiveSection } from '../components/LiveCard.jsx'
 import Spinner from '../components/Spinner.jsx'
 import { MatchCardSkeleton, GroupCardSkeleton } from '../components/Skeleton.jsx'
 import Footer from '../components/Footer.jsx'
+import AdSlot from '../components/AdSlot.jsx'
+import { adsConfig } from '../api/ads.js'
 
 const dateKey = (m) => {
   if (!m?.kickoff_iso) return ''
@@ -219,6 +221,9 @@ export default function MainFeed() {
               <LiveSection matches={matches} venues={venues} onJumpToFeed={scrollToFeed} />
             )}
 
+            {/* In-feed ad: between the "Now" rail and the day's match list. */}
+            <AdSlot slot={adsConfig.slots.home} label="Sponsored" />
+
             {/* Feed (date-driven by default, tab-driven when a tab is selected). */}
             <section className="section" ref={feedRef}>
               <div className="section-head">
@@ -289,6 +294,9 @@ export default function MainFeed() {
                 )
               })()}
             </section>
+
+            {/* Below-fold ad: ahead of the groups grid. */}
+            <AdSlot slot={adsConfig.slots.home} label="Sponsored" />
 
             {/* Groups */}
             {(tab === 'all' || isSearching) && filtered.groups.length > 0 && (

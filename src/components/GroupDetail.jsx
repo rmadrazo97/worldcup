@@ -7,6 +7,8 @@ import { useTeams } from '../api/providers.jsx'
 import { formatShortDate } from '../api/clock.js'
 import { track } from '../api/analytics.js'
 import { PageSpinner } from './Spinner.jsx'
+import AdSlot from './AdSlot.jsx'
+import { adsConfig } from '../api/ads.js'
 
 const shortDate = (iso) => {
   if (!iso) return ''
@@ -185,6 +187,8 @@ export default function GroupDetail() {
           </div>
         </section>
 
+        <AdSlot slot={adsConfig.slots.group} label="Sponsored" />
+
         {byMd.map((md, i) => (
           <section className="section md-section" key={i}>
             <h3>
@@ -196,6 +200,8 @@ export default function GroupDetail() {
             </div>
           </section>
         ))}
+
+        <AdSlot slot={adsConfig.slots.group} label="Sponsored" />
       </div>
     </div>
   )

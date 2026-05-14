@@ -3,17 +3,23 @@ import MainFeed from './pages/MainFeed.jsx'
 import GroupDetailPage from './pages/GroupDetailPage.jsx'
 import MatchDetailPage from './pages/MatchDetailPage.jsx'
 import PlayoffPage from './pages/PlayoffPage.jsx'
+import PrivacyPage from './pages/PrivacyPage.jsx'
+import ConsentBanner from './components/ConsentBanner.jsx'
 import { usePageViews } from './api/analytics.js'
 
 export default function App() {
   usePageViews()
   return (
-    <Routes>
-      <Route path="/" element={<MainFeed />} />
-      <Route path="/group/:groupId" element={<GroupDetailPage />} />
-      <Route path="/match/:matchId" element={<MatchDetailPage />} />
-      <Route path="/playoff" element={<PlayoffPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<MainFeed />} />
+        <Route path="/group/:groupId" element={<GroupDetailPage />} />
+        <Route path="/match/:matchId" element={<MatchDetailPage />} />
+        <Route path="/playoff" element={<PlayoffPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <ConsentBanner />
+    </>
   )
 }

@@ -101,7 +101,7 @@ jobs:
       # surface the channel ID + expiry explicitly.
       - name: Comment preview URL on PR
         if: steps.hosting_deploy.outputs.details_url != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

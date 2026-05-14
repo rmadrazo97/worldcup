@@ -114,6 +114,22 @@ const { store, fakeDb } = vi.hoisted(() => {
       doc: (id: string) => new FakeRef(`${name}/${id}`),
       where: (field: string, op: string, value: unknown) =>
         new FakeQuery(name).where(field, op, value),
+      // Bare .get() returns every doc under the collection — used by the
+      // freezer's per-docId sweep (list/aggregate docs lack payload.season).
+      get: async () => {
+        const docs: Array<{
+          exists: boolean
+          id: string
+          data: () => Record<string, unknown> | undefined
+          ref: FakeRef
+        }> = []
+        for (const [path, data] of store.entries()) {
+          if (!path.startsWith(name + '/')) continue
+          const ref = new FakeRef(path)
+          docs.push({ exists: true, id: ref.id, data: () => data, ref })
+        }
+        return { empty: docs.length === 0, docs }
+      },
     }),
     doc: (path: string) => new FakeRef(path),
   }
@@ -226,5 +242,26 @@ describe('schedulers/freezeCompletedSeasons', () => {
     expect(store.get('teams/teams_2018')?._frozen).toBe(true)
     expect(store.get('stadiums/stadiums_2018')?._frozen).toBe(true)
     expect(store.get('matches/match_5001')?._frozen).toBe(true)
+  })
+
+  it('cohort freeze also covers list/aggregate docs that lack payload.season', async () => {
+    // Production list docs (e.g. matches/matches_2018) are written with a
+    // payload of `{ data: [...] }` — no season field on the payload itself.
+    // The freezer must still pin them via docId convention.
+    const longAgoIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    store.set('matches/match_6001', {
+      payload: { status: 'FT', kickoff_iso: longAgoIso, season: 2018 },
+    })
+    // List/aggregate docs — no season field on payload.
+    store.set('matches/matches_2018', { payload: { data: [] } })
+    store.set('groups/groups_2018', { payload: { data: [] } })
+    store.set('standings/standings_2018', { payload: { data: [] } })
+
+    const handle = freezeCompletedSeasons as unknown as ScheduledHandle
+    await handle.run({})
+
+    expect(store.get('matches/matches_2018')?._frozen).toBe(true)
+    expect(store.get('groups/groups_2018')?._frozen).toBe(true)
+    expect(store.get('standings/standings_2018')?._frozen).toBe(true)
   })
 })

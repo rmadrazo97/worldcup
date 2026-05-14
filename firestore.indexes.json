@@ -25,6 +25,14 @@
         { "fieldPath": "payload.status", "order": "ASCENDING" },
         { "fieldPath": "_frozen", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "payload.status", "order": "ASCENDING" },
+        { "fieldPath": "payload.kickoff_iso", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

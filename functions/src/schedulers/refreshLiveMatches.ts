@@ -163,7 +163,7 @@ async function refreshOneLiveMatch(match: Match): Promise<void> {
     if (lineupsRes.status === 'fulfilled') {
       lineupRows = lineupsRes.value
     } else {
-      tierRequired.lineups = isTier(lineupsRes.reason)
+      if (isTier(lineupsRes.reason)) tierRequired.lineups = true
       lineupRows = []
     }
 
@@ -171,7 +171,7 @@ async function refreshOneLiveMatch(match: Match): Promise<void> {
     if (eventsRes.status === 'fulfilled') {
       events = eventsRes.value
     } else {
-      tierRequired.events = isTier(eventsRes.reason)
+      if (isTier(eventsRes.reason)) tierRequired.events = true
       events = []
     }
 
@@ -179,7 +179,7 @@ async function refreshOneLiveMatch(match: Match): Promise<void> {
     if (statsRes.status === 'fulfilled') {
       teamStatsRows = statsRes.value
     } else {
-      tierRequired.stats = isTier(statsRes.reason)
+      if (isTier(statsRes.reason)) tierRequired.stats = true
       teamStatsRows = []
     }
 
@@ -209,12 +209,13 @@ async function refreshOneLiveMatch(match: Match): Promise<void> {
   }
 }
 
-function isTier(reason: unknown): true {
-  if (!(reason instanceof TierRequiredError)) {
-    // Non-tier failures we silently absorb but at least surface to logs.
-    logger.warn('refreshLiveMatches.section_fail', { err: String(reason) })
-  }
-  return true
+function isTier(reason: unknown): boolean {
+  // Only return true for actual tier errors. Returning true on every
+  // failure would mislabel transient 5xx as "tier required" and trigger
+  // a misleading upsell in the client UI.
+  if (reason instanceof TierRequiredError) return true
+  logger.warn('refreshLiveMatches.section_fail', { err: String(reason) })
+  return false
 }
 
 // Re-export the constant so tests / other modules can reuse it without

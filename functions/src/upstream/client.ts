@@ -57,7 +57,7 @@ function readApiKey(): string {
   return secret || process.env.BALLDONTLIE_API_KEY || ''
 }
 
-function authHeaders(path: string): HeadersInit {
+function authHeaders(path: string): Record<string, string> {
   const key = readApiKey()
   if (!key) throw new UpstreamAuthError(path, 500, 'no api key configured')
   // Raw key — `Bearer <key>` also works upstream; raw is canonical.

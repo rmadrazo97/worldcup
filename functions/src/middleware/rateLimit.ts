@@ -1,6 +1,11 @@
 // Per-UID token bucket. Capacity 60, refill 1/sec, persisted in
-// meta/rate_buckets/{uid}. Implemented as a Firestore transaction so two
+// rate_buckets/{uid}. Implemented as a Firestore transaction so two
 // concurrent requests from the same UID cannot overshoot the bucket.
+//
+// The collection is top-level (not nested under meta/) because Firestore
+// document paths must have an even number of segments. firestore.rules
+// blocks all client reads/writes on this collection; only the Admin SDK
+// can touch it.
 
 import { HttpsError } from 'firebase-functions/v2/https'
 import type { CallableRequest } from 'firebase-functions/v2/https'
@@ -26,7 +31,7 @@ export function withRateLimit<T, R>(
       throw new HttpsError('unauthenticated', 'auth required')
     }
 
-    const ref = db.doc(`meta/rate_buckets/${uid}`)
+    const ref = db.collection('rate_buckets').doc(uid)
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref)
       const now = Date.now()

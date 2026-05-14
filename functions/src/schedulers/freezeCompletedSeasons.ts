@@ -131,11 +131,23 @@ async function freezeAllForSeason(season: number): Promise<void> {
     'players',
   ]
   for (const col of collections) {
-    const docs = await db
+    // Per-record docs carry `payload.season`. List/aggregate docs don't —
+    // they're keyed by docId pattern (`<resource>_<season>`, see
+    // functions/src/cache/keys.ts). Walk both so the cohort sweep covers
+    // every cached doc for the season, not just the per-record ones.
+    const byField = await db
       .collection(col)
       .where('payload.season', '==', season)
       .get()
-    for (const snap of docs.docs) {
+    for (const snap of byField.docs) {
+      if (snap.data()._frozen === true) continue
+      await freezeDoc(snap.ref, 'season-complete')
+    }
+
+    const all = await db.collection(col).get()
+    const suffix = `_${season}`
+    for (const snap of all.docs) {
+      if (!snap.id.includes(suffix)) continue
       if (snap.data()._frozen === true) continue
       await freezeDoc(snap.ref, 'season-complete')
     }

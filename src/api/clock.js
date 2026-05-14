@@ -1,14 +1,19 @@
 // Single source of "now" for the app.
 //
-// While the data layer is on mock fixtures, "now" is frozen at the same
-// instant the mock data is keyed around (Fri Jun 19, 2026, 4:31 PM local).
-// When the live API is wired, swap getNow() to `() => new Date()` and remove
-// the MOCK_NOW constant.
+// In production (season === 2026) `getNow()` returns the wall clock. For the
+// historical seasons we freeze "now" at the moment of the final whistle so
+// the UI shows the tournament as just-completed (all matches "FT", etc.).
 
-const MOCK_NOW = new Date(2026, 5, 19, 16, 31)
+import { getActiveSeason } from './season.js'
+
+const FROZEN = {
+  2018: new Date('2018-07-15T18:00:00Z'),
+  2022: new Date('2022-12-18T18:00:00Z'),
+}
 
 export function getNow() {
-  return MOCK_NOW
+  const season = getActiveSeason()
+  return FROZEN[season] || new Date()
 }
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

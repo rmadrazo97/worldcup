@@ -8,6 +8,14 @@ dist-ssr
 dev-dist
 .firebase
 
+# Env files
+.env
+.env.local
+.env.*.local
+functions/lib
+functions/.env
+functions/.secret.local
+
 # Claude Code runtime state
 .claude/
 

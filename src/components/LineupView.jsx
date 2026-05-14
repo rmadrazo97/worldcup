@@ -1,11 +1,27 @@
-import { LINEUPS, TEAMS } from '../api/mock-data.js'
 import { CountryCrest } from './Flag.jsx'
 import Pitch from './Pitch.jsx'
+import { useTeam } from '../api/providers.jsx'
 
-export default function LineupView({ match }) {
-  const home = { code: match.home, lineup: LINEUPS[match.home] }
-  const away = { code: match.away, lineup: LINEUPS[match.away] }
-  if (!home.lineup || !away.lineup) {
+function displayName(p) {
+  return p.short_name || p.name || ''
+}
+
+function pitchLineup(lineup) {
+  const formation = lineup.formation || '4-3-3'
+  const starters = (lineup.starters || []).map(p => ({
+    n: p.n != null ? p.n : '–',
+    name: displayName(p),
+  }))
+  return { formation, starters }
+}
+
+export default function LineupView({ match, details }) {
+  const home = details?.lineups?.home || null
+  const away = details?.lineups?.away || null
+  const homeTeam = useTeam(match.home)
+  const awayTeam = useTeam(match.away)
+
+  if (!home || !away) {
     return (
       <div className="detail-fallback">
         <h4>Line-ups not announced</h4>
@@ -13,36 +29,42 @@ export default function LineupView({ match }) {
       </div>
     )
   }
+
+  const homePitch = pitchLineup(home)
+  const awayPitch = pitchLineup(away)
+  const homeSubsText = (home.subs || []).map(displayName).filter(Boolean).join(' · ')
+  const awaySubsText = (away.subs || []).map(displayName).filter(Boolean).join(' · ')
+
   return (
     <div className="lineup-wrap">
       <div className="lineup-meta">
         <div className="side">
           <CountryCrest team={match.home} variant="sm" />
-          <span>{TEAMS[match.home].name}</span>
-          <span className="formation">{home.lineup.formation}</span>
+          <span>{homeTeam.name}</span>
+          <span className="formation">{homePitch.formation}</span>
         </div>
-        <div className="side" style={{flexDirection:"row-reverse"}}>
+        <div className="side" style={{flexDirection:'row-reverse'}}>
           <CountryCrest team={match.away} variant="sm" />
-          <span>{TEAMS[match.away].name}</span>
-          <span className="formation">{away.lineup.formation}</span>
+          <span>{awayTeam.name}</span>
+          <span className="formation">{awayPitch.formation}</span>
         </div>
       </div>
       <div className="pitch-wrap">
         <Pitch
-          home={{ formation: home.lineup.formation, lineup: home.lineup }}
-          away={{ formation: away.lineup.formation, lineup: away.lineup }}
+          home={{ formation: homePitch.formation, lineup: homePitch }}
+          away={{ formation: awayPitch.formation, lineup: awayPitch }}
         />
       </div>
       <div className="lineup-subs">
         <div className="lineup-subs-col">
-          <span className="label">Bench — {TEAMS[match.home].short}</span>
-          <span className="names">{home.lineup.subs.join(" · ")}</span>
-          <span className="coach">Coach · {home.lineup.coach}</span>
+          <span className="label">Bench — {homeTeam.short}</span>
+          <span className="names">{homeSubsText}</span>
+          <span className="coach">Coach · {home.coach || '—'}</span>
         </div>
         <div className="lineup-subs-col">
-          <span className="label">Bench — {TEAMS[match.away].short}</span>
-          <span className="names">{away.lineup.subs.join(" · ")}</span>
-          <span className="coach">Coach · {away.lineup.coach}</span>
+          <span className="label">Bench — {awayTeam.short}</span>
+          <span className="names">{awaySubsText}</span>
+          <span className="coach">Coach · {away.coach || '—'}</span>
         </div>
       </div>
     </div>

@@ -1,29 +1,61 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { TEAMS, VENUES, MATCH_DETAILS } from '../api/mock-data.js'
-import { getMatchById } from '../api/scores.js'
+import { getMatchById, getMatchDetails, getVenues } from '../api/scores.js'
+import { subscribeMatch, subscribeMatchDetails } from '../api/live.js'
+import { useTeam } from '../api/providers.jsx'
 import { Flag } from './Flag.jsx'
 import LineupView from './LineupView.jsx'
 import StatsView from './StatsView.jsx'
 import TimelineView from './TimelineView.jsx'
 import FanRush from './FanRush.jsx'
 
+function kickoffLabel(iso) {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleString([], {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  } catch {
+    return ''
+  }
+}
+
 export default function MatchDetail() {
   const { matchId } = useParams()
   const [match, setMatch] = useState(null)
+  const [details, setDetails] = useState(null)
+  const [venuesMap, setVenuesMap] = useState({})
   const [tab, setTab] = useState('lineup')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [notFound, setNotFound] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
+  // Fetch venues once — small, cached.
   useEffect(() => {
     let alive = true
+    getVenues()
+      .then(v => { if (alive) setVenuesMap(v || {}) })
+      .catch(() => { /* non-fatal: venue label gracefully degrades to short */ })
+    return () => { alive = false }
+  }, [])
+
+  // Initial paint via callables; if LIVE, attach Firestore listeners.
+  useEffect(() => {
+    let alive = true
+    let unsubMatch = () => {}
+    let unsubDetails = () => {}
+
     setLoading(true)
     setError(null)
     setNotFound(false)
-    getMatchById(matchId)
-      .then((m) => {
+
+    Promise.all([getMatchById(matchId), getMatchDetails(matchId)])
+      .then(([m, d]) => {
         if (!alive) return
         if (!m) {
           setNotFound(true)
@@ -31,15 +63,41 @@ export default function MatchDetail() {
           return
         }
         setMatch(m)
+        setDetails(d)
         setLoading(false)
+        if (m.status === 'LIVE' || m.status === 'HT') {
+          unsubMatch = subscribeMatch(matchId, (next) => {
+            if (!alive || !next) return
+            setMatch(next)
+            // Tear down listeners once we transition out of live.
+            if (next.status !== 'LIVE' && next.status !== 'HT') {
+              unsubMatch && unsubMatch()
+              unsubDetails && unsubDetails()
+              unsubMatch = () => {}
+              unsubDetails = () => {}
+            }
+          })
+          unsubDetails = subscribeMatchDetails(matchId, (next) => {
+            if (!alive || !next) return
+            setDetails(next)
+          })
+        }
       })
       .catch((e) => {
         if (!alive) return
         setError(e)
         setLoading(false)
       })
-    return () => { alive = false }
+
+    return () => {
+      alive = false
+      unsubMatch && unsubMatch()
+      unsubDetails && unsubDetails()
+    }
   }, [matchId, reloadKey])
+
+  const homeTeam = useTeam(match?.home || '')
+  const awayTeam = useTeam(match?.away || '')
 
   if (notFound) {
     return (
@@ -78,13 +136,14 @@ export default function MatchDetail() {
     )
   }
 
-  const isLive = match.status === "LIVE"
-  const isFT   = match.status === "FT"
-  const isSched= match.status === "SCHED"
-  const home = TEAMS[match.home]
-  const away = TEAMS[match.away]
-  const details = MATCH_DETAILS[match.id]
-  const fanCount = details?.fans || 5200
+  const isLive  = match.status === 'LIVE'
+  const isHT    = match.status === 'HT'
+  const isFT    = match.status === 'FT'
+  const isSched = match.status === 'SCHED'
+  const isPP    = match.status === 'PP'
+  const isCXL   = match.status === 'CXL'
+  const venueLabel = venuesMap[match.venueShort] || match.venueShort || 'Stadium'
+  const fanCount = details?.attendance ?? 5200
 
   return (
     <div className="match-detail">
@@ -95,7 +154,13 @@ export default function MatchDetail() {
             {isLive && (
               <span className="live-chip">
                 <span className="dot" />
-                <span>Live · {match.minute}</span>
+                <span>{match.minute ? `Live · ${match.minute}` : 'Live'}</span>
+              </span>
+            )}
+            {isHT && (
+              <span className="live-chip">
+                <span className="dot" />
+                <span>Half time</span>
               </span>
             )}
             {isFT && (
@@ -107,18 +172,30 @@ export default function MatchDetail() {
             {isSched && (
               <span className="live-chip is-sched">
                 <span className="dot" />
-                <span>{match.kickoff} · {match.date}</span>
+                <span>{kickoffLabel(match.kickoff_iso)}</span>
+              </span>
+            )}
+            {isPP && (
+              <span className="live-chip is-sched">
+                <span className="dot" />
+                <span>Postponed</span>
+              </span>
+            )}
+            {isCXL && (
+              <span className="live-chip is-sched">
+                <span className="dot" />
+                <span>Cancelled</span>
               </span>
             )}
           </div>
           <div className="summary-body">
             <div className="summary-team">
               <span className="crest-lg"><Flag team={match.home} size="lg" /></span>
-              <span className="t-name-lg">{home.name}</span>
+              <span className="t-name-lg">{homeTeam.name}</span>
               <span className="t-side">Group {match.group}</span>
             </div>
             <div className="summary-score">
-              {isSched ? (
+              {(isSched || isPP || isCXL) ? (
                 <>
                   <span>—</span><span className="sep">vs</span><span>—</span>
                 </>
@@ -132,7 +209,7 @@ export default function MatchDetail() {
             </div>
             <div className="summary-team">
               <span className="crest-lg"><Flag team={match.away} size="lg" /></span>
-              <span className="t-name-lg">{away.name}</span>
+              <span className="t-name-lg">{awayTeam.name}</span>
               <span className="t-side">Group {match.group}</span>
             </div>
           </div>
@@ -142,24 +219,24 @@ export default function MatchDetail() {
                 <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
                 <circle cx="12" cy="10" r="3"/>
               </svg>
-              {VENUES[match.venue]}
+              {venueLabel}
             </span>
             <span className="live-fan-rush">
-              <span style={{fontSize:12, color:"var(--ink-2)", marginRight:8}}>Live fan rush</span>
+              <span style={{fontSize:12, color:'var(--ink-2)', marginRight:8}}>Live fan rush</span>
               <FanRush count={fanCount} />
             </span>
           </div>
         </div>
 
         <div className="detail-tabs">
-          <button className={"detail-tab" + (tab === "lineup" ? " active" : "")} onClick={() => setTab("lineup")}>Line up</button>
-          <button className={"detail-tab" + (tab === "stats"  ? " active" : "")} onClick={() => setTab("stats")}>Statistics</button>
-          <button className={"detail-tab" + (tab === "timeline" ? " active" : "")} onClick={() => setTab("timeline")}>Timeline</button>
+          <button className={'detail-tab' + (tab === 'lineup' ? ' active' : '')} onClick={() => setTab('lineup')}>Line up</button>
+          <button className={'detail-tab' + (tab === 'stats'  ? ' active' : '')} onClick={() => setTab('stats')}>Statistics</button>
+          <button className={'detail-tab' + (tab === 'timeline' ? ' active' : '')} onClick={() => setTab('timeline')}>Timeline</button>
         </div>
 
-        {tab === "lineup"   && <LineupView   match={match} />}
-        {tab === "stats"    && <StatsView    match={match} />}
-        {tab === "timeline" && <TimelineView match={match} />}
+        {tab === 'lineup'   && <LineupView   match={match} details={details} />}
+        {tab === 'stats'    && <StatsView    match={match} details={details} />}
+        {tab === 'timeline' && <TimelineView match={match} details={details} />}
       </div>
     </div>
   )

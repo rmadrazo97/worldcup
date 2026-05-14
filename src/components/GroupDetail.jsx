@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { TEAMS } from '../api/mock-data.js'
 import { getGroups, getMatches, getStandings } from '../api/scores.js'
 import { CountryCrest } from './Flag.jsx'
 import MatchCard from './MatchCard.jsx'
+import { useTeams } from '../api/providers.jsx'
+import { formatShortDate } from '../api/clock.js'
+
+const shortDate = (iso) => {
+  if (!iso) return ''
+  try { return formatShortDate(new Date(iso)) } catch { return '' }
+}
 
 export default function GroupDetail() {
   const { groupId } = useParams()
+  const { teams } = useTeams()
   const [group, setGroup] = useState(null)
   const [standings, setStandings] = useState([])
   const [groupMatches, setGroupMatches] = useState([])
@@ -35,7 +42,7 @@ export default function GroupDetail() {
         }
         setGroup(g)
         setStandings(s)
-        setGroupMatches(m)
+        setGroupMatches([...m].sort((a, b) => (a.kickoff_iso || '').localeCompare(b.kickoff_iso || '')))
         setLoading(false)
       })
       .catch((e) => {
@@ -85,8 +92,8 @@ export default function GroupDetail() {
 
   if (!group) return null
 
-  const liveCount = groupMatches.filter(m => m.status === "LIVE").length
-  const played = groupMatches.filter(m => m.status === "FT").length
+  const liveCount = groupMatches.filter(m => m.status === 'LIVE' || m.status === 'HT').length
+  const played = groupMatches.filter(m => m.status === 'FT').length
   const byMd = [1, 2, 3].map(md => groupMatches.filter(m => m.md === md))
 
   return (
@@ -100,7 +107,7 @@ export default function GroupDetail() {
           </div>
           <h1>
             Group {group.id}
-            <span className="label">{group.teams.map(t => TEAMS[t].name).join(" · ")}</span>
+            <span className="label">{group.teams.map(t => teams[t]?.name || t).join(' · ')}</span>
           </h1>
           <div className="summary">
             <span>4 teams</span>
@@ -138,14 +145,15 @@ export default function GroupDetail() {
               </thead>
               <tbody>
                 {standings.map((row, i) => {
-                  const cls = i < 2 ? "qual" : i === 2 ? "maybe" : ""
+                  const pos = row.pos ?? (i + 1)
+                  const cls = pos <= 2 ? 'qual' : pos === 3 ? 'maybe' : ''
                   return (
                     <tr key={row.team} className={cls}>
                       <td>
                         <div className="team-cell">
-                          <span className="pos-cell">{i + 1}</span>
+                          <span className="pos-cell">{pos}</span>
                           <CountryCrest team={row.team} variant="sm" />
-                          <span className="country">{TEAMS[row.team].name}</span>
+                          <span className="country">{teams[row.team]?.name || row.team}</span>
                         </div>
                       </td>
                       <td>{row.pld}</td>
@@ -162,8 +170,8 @@ export default function GroupDetail() {
               </tbody>
             </table>
             <div className="legend">
-              <span><i style={{background:"var(--ink-0)"}}/>Advance to knockout</span>
-              <span><i style={{background:"var(--ink-4)"}}/>Best 3rd-placed (8 of 12)</span>
+              <span><i style={{background:'var(--ink-0)'}}/>Advance to knockout</span>
+              <span><i style={{background:'var(--ink-4)'}}/>Best 3rd-placed (8 of 12)</span>
             </div>
           </div>
         </section>
@@ -172,7 +180,7 @@ export default function GroupDetail() {
           <section className="section md-section" key={i}>
             <h3>
               Matchday {i + 1}
-              <span className="md-date">{md[0]?.date}</span>
+              <span className="md-date">{md[0] && shortDate(md[0].kickoff_iso)}</span>
             </h3>
             <div className="match-list">
               {md.map(m => <MatchCard key={m.id} match={m} to={`/match/${m.id}`} showDate={false} />)}

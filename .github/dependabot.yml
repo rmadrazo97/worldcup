@@ -1,0 +1,73 @@
+version: 2
+
+updates:
+  # Root: Vite client.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Etc/UTC"
+    target-branch: main
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - web
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      web-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    # Major bumps stay as their own PRs (no group rule for "major") so they
+    # get individual review.
+
+  # Cloud Functions (TS).
+  - package-ecosystem: npm
+    directory: "/functions"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Etc/UTC"
+    target-branch: main
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - functions
+    commit-message:
+      prefix: "chore(deps,functions)"
+      include: scope
+    groups:
+      functions-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions versions (the `uses:` pins above).
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Etc/UTC"
+    target-branch: main
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(deps,ci)"
+      include: scope
+    groups:
+      actions-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch

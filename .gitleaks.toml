@@ -1,0 +1,61 @@
+# Gitleaks configuration for the World Cup PWA.
+#
+# We extend the upstream default rules (AWS keys, GCP service account JSON,
+# Slack tokens, private keys, etc.) and add one project-specific rule for the
+# balldontlie API key, which is shaped as a UUID v4 (e.g.
+# d7424a3d-16ac-4f73-89a2-224816b9248c).
+#
+# Rationale for the allowlist:
+#   - functions/test/fixtures/upstream/**  : captured upstream JSON responses;
+#     they don't contain keys today but we keep the path allowlisted so a
+#     defensive fixture that does reference an example key never blocks CI.
+#   - docs/plan/**                         : plan docs may quote a test key
+#     literal for illustration. Verified manually that no live keys are
+#     committed there.
+#   - package-lock.json                    : npm lockfiles contain UUID-shaped
+#     resolver IDs and integrity hashes that false-positive constantly.
+
+title = "worldcup gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "balldontlie-api-key"
+description = "balldontlie.io UUID-shaped API key (RFC 4122 v4)"
+regex = '''[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}'''
+# Group 0 = the whole match. Gitleaks treats the matched span as the secret.
+secretGroup = 0
+tags = ["key", "balldontlie", "uuid-v4"]
+
+[rules.allowlist]
+description = "Allow UUIDs in known-safe locations (fixtures, lockfile, plan docs)."
+paths = [
+  '''functions/test/fixtures/upstream/.*''',
+  '''docs/plan/.*''',
+  '''package-lock\.json''',
+  '''functions/package-lock\.json''',
+]
+
+# Global allowlist: applies to every rule (including the default ruleset).
+[allowlist]
+description = "Project-wide path allowlist for paths known to contain non-secret tokens."
+paths = [
+  '''functions/test/fixtures/upstream/.*''',
+  '''docs/plan/.*''',
+  '''package-lock\.json''',
+  '''functions/package-lock\.json''',
+  '''(^|/)node_modules/''',
+  '''(^|/)dist/''',
+  '''(^|/)functions/lib/''',
+  '''\.env\.example$''',
+]
+# Common false-positive strings: placeholders used in docs/examples and the
+# Firebase web config (apiKey is public-by-design — see docs/plan/05 § 1).
+regexes = [
+  '''AIza[0-9A-Za-z_-]{35}''',                    # Firebase Web API key (public)
+  '''(?i)example[-_]?(?:api[-_]?)?key''',
+  '''(?i)placeholder''',
+  '''(?i)your[-_]?(?:api[-_]?)?key[-_]?here''',
+  '''xxxx+''',
+]

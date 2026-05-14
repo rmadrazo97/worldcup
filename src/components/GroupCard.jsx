@@ -1,20 +1,23 @@
 import { Link } from 'react-router-dom'
-import { TEAMS } from '../api/mock-data.js'
 import { CountryCrest } from './Flag.jsx'
+import { useTeams } from '../api/providers.jsx'
 
 export default function GroupCard({ group, standings, groupMatches }) {
-  const hasLive = groupMatches.some(m => m.status === "LIVE")
-  const played = groupMatches.filter(m => m.status === "FT").length
-  const liveCount = groupMatches.filter(m => m.status === "LIVE").length
+  const { teams } = useTeams()
+  const matches = groupMatches || []
+  const rows = standings || []
+  const hasLive = matches.some(m => m.status === 'LIVE' || m.status === 'HT')
+  const played = matches.filter(m => m.status === 'FT').length
+  const liveCount = matches.filter(m => m.status === 'LIVE' || m.status === 'HT').length
 
   let stateLabel = `${played}/6 played`
   if (hasLive) stateLabel = `${liveCount} live · ${played}/6 played`
-  else if (played === 0) stateLabel = "Not started"
-  else if (played === 6) stateLabel = "Complete"
+  else if (played === 0) stateLabel = 'Not started'
+  else if (played === 6) stateLabel = 'Complete'
 
   return (
     <Link
-      className={"group-card" + (hasLive ? " has-live" : "")}
+      className={'group-card' + (hasLive ? ' has-live' : '')}
       to={`/group/${group.id}`}
     >
       <div className="group-head">
@@ -22,22 +25,26 @@ export default function GroupCard({ group, standings, groupMatches }) {
           <span className="group-id">{group.id}</span>
           <span className="group-id-label">Group</span>
         </div>
-        <span className={"group-state" + (hasLive ? " has-live" : "")}>{stateLabel}</span>
+        <span className={'group-state' + (hasLive ? ' has-live' : '')}>{stateLabel}</span>
       </div>
       <div className="group-teams">
-        {standings.map((row, i) => (
-          <div key={row.team} className={"group-team-row" + (i < 2 ? " qual" : "")}>
-            <span className="pos">{i + 1}</span>
-            <div className="team-l">
-              <CountryCrest team={row.team} variant="sm" />
-              <span className="t-name">{TEAMS[row.team].name}</span>
+        {rows.map((row, i) => {
+          const t = teams[row.team]
+          const pos = row.pos ?? (i + 1)
+          return (
+            <div key={row.team} className={'group-team-row' + (pos <= 2 ? ' qual' : '')}>
+              <span className="pos">{pos}</span>
+              <div className="team-l">
+                <CountryCrest team={row.team} variant="sm" />
+                <span className="t-name">{t?.name || row.team}</span>
+              </div>
+              <div className="t-stats">
+                <span className="gd">{row.gd > 0 ? `+${row.gd}` : row.gd}</span>
+                <span className="pts">{row.pts}</span>
+              </div>
             </div>
-            <div className="t-stats">
-              <span className="gd">{row.gd > 0 ? `+${row.gd}` : row.gd}</span>
-              <span className="pts">{row.pts}</span>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
       <div className="group-foot">
         <span>4 teams · 6 matches</span>

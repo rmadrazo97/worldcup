@@ -1,0 +1,124 @@
+name: Deploy preview
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+# One preview deploy per PR. Cancel an in-flight deploy if a new commit lands.
+concurrency:
+  group: deploy-preview-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build web + functions
+    runs-on: ubuntu-latest
+    outputs:
+      web-artifact: web-dist-${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Install + build web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install + build functions
+        run: |
+          cd functions
+          npm ci
+          npm run build
+
+      - name: Upload web dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist-${{ github.event.pull_request.number }}
+          path: dist
+          retention-days: 7
+
+      - name: Upload functions lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: functions-lib-${{ github.event.pull_request.number }}
+          path: functions/lib
+          retention-days: 7
+
+  deploy-preview:
+    name: Deploy Hosting preview channel
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Download web dist
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist-${{ github.event.pull_request.number }}
+          path: dist
+
+      # Cloud Functions are intentionally NOT deployed from the preview workflow.
+      # Firebase Hosting preview channels share the same Functions deployment as
+      # production (preview channels rewrite to the prod backend). Deploying
+      # functions per-PR would clobber prod for every other PR and user.
+      #
+      # When a dedicated staging-functions project (e.g.
+      # worldcup-live-scores-2026-staging) is provisioned, add a
+      # `deploy-functions-staging` job here that targets that project. Until
+      # then, operators must promote functions changes through the prod
+      # workflow only.
+
+      - name: Deploy to Firebase Hosting preview channel
+        id: hosting_deploy
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: worldcup-live-scores-2026
+          channelId: pr-${{ github.event.pull_request.number }}
+          expires: 7d
+
+      # The action above already posts a sticky comment with the preview URL
+      # via repoToken. This step adds a second comment for visibility and to
+      # surface the channel ID + expiry explicitly.
+      - name: Comment preview URL on PR
+        if: steps.hosting_deploy.outputs.details_url != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const url = `${{ steps.hosting_deploy.outputs.details_url }}`;
+            const channel = `pr-${{ github.event.pull_request.number }}`;
+            const body = [
+              '### Preview deploy ready',
+              '',
+              `- Channel: \`${channel}\` (expires in 7 days)`,
+              `- URL: ${url}`,
+              '',
+              '_Cloud Functions are not re-deployed for previews; this channel',
+              'rewrites to the production Functions backend._',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

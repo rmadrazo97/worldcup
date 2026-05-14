@@ -26,11 +26,18 @@ export default function PrivacyPage() {
             <h2>Who we are</h2>
             <p>
               This site (the &ldquo;Service&rdquo;) is operated by <strong>ACLOUDBREW STUDIOS LLC</strong>
-              {' '}(&ldquo;we&rdquo;, &ldquo;us&rdquo;). It provides live scores, group standings,
+              {' '}(&ldquo;we&rdquo;, &ldquo;us&rdquo;), the data controller for any personal
+              information processed through it. We provide live scores, group standings,
               fixtures, and match details for the 2026 FIFA World Cup. We are not
-              affiliated with FIFA. You can contact us at{' '}
-              <a href="mailto:acloudbrew@proton.me">acloudbrew@proton.me</a>.
+              affiliated with FIFA.
             </p>
+            <address className="privacy-address">
+              ACLOUDBREW STUDIOS LLC<br />
+              1209 Mountain Road Pl NE, Ste N<br />
+              Albuquerque, NM 87110<br />
+              United States<br />
+              <a href="mailto:acloudbrew@proton.me">acloudbrew@proton.me</a>
+            </address>
           </section>
 
           <section>
@@ -180,10 +187,14 @@ export default function PrivacyPage() {
 
           <section>
             <h2>Contact</h2>
-            <p>
-              Questions? Reach us at{' '}
-              <a href="mailto:acloudbrew@proton.me">acloudbrew@proton.me</a>.
-            </p>
+            <p>Questions about this policy or your data? Reach us at:</p>
+            <address className="privacy-address">
+              ACLOUDBREW STUDIOS LLC<br />
+              1209 Mountain Road Pl NE, Ste N<br />
+              Albuquerque, NM 87110<br />
+              United States<br />
+              <a href="mailto:acloudbrew@proton.me">acloudbrew@proton.me</a>
+            </address>
           </section>
         </article>
       </div>

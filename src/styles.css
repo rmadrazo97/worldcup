@@ -3291,4 +3291,16 @@ a.bracket-card:hover::before {
 .privacy-page ul { padding-left: 20px; }
 .privacy-page li { margin: 6px 0; }
 .privacy-page a { color: var(--ink-0); text-decoration: underline; }
+.privacy-address {
+  font-style: normal;
+  display: block;
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  background: var(--paper-hover);
+  border-left: 3px solid var(--ink-3);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  line-height: 1.55;
+  font-size: 14px;
+  color: var(--ink-1);
+}
 

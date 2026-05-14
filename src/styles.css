@@ -293,6 +293,10 @@ html, body {
   box-shadow: 0 0 0 4px var(--live-glow-2);
   animation: now-pulse 2.2s ease-in-out infinite;
 }
+.intro-meta .intro-tz {
+  color: var(--ink-3);
+  cursor: help;
+}
 @keyframes now-pulse {
   0%, 100% { box-shadow: 0 0 0 0 var(--live-glow-2); opacity: 0.8; }
   50%      { box-shadow: 0 0 0 6px transparent; opacity: 1; }
@@ -361,8 +365,17 @@ html, body {
   transition: all 180ms var(--ease);
   user-select: none;
   position: relative;
+  font: inherit;
+  color: inherit;
+  text-align: center;
 }
 .date-pill:hover { background: var(--paper); }
+.date-pill:focus-visible {
+  outline: 2px solid var(--ink-0);
+  outline-offset: 2px;
+}
+.date-pill.is-empty { opacity: 0.55; }
+.date-pill.is-empty:hover { opacity: 1; }
 .date-pill .d-num {
   font-size: 18px;
   font-weight: 600;
@@ -1165,6 +1178,30 @@ html, body {
   margin-bottom: 6px;
 }
 .empty-sub {
+  font-size: 13px;
+  color: var(--ink-2);
+  letter-spacing: -0.005em;
+}
+
+/* Upcoming-fallback banner shown when the selected day has no matches. */
+.upcoming-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.upcoming-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-0);
+}
+.upcoming-sub {
   font-size: 13px;
   color: var(--ink-2);
   letter-spacing: -0.005em;

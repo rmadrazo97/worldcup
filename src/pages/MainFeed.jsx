@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getGroups, getMatches, getStandings, getVenues } from '../api/scores.js'
-import { getNow, formatShortDate, formatLongEyebrow } from '../api/clock.js'
+import { getNow, getTournamentToday, formatShortDate, formatLongEyebrow, TOURNAMENT_WINDOW } from '../api/clock.js'
 import { useTeams } from '../api/providers.jsx'
 import { track, useTrackSearch } from '../api/analytics.js'
 import Header from '../components/Header.jsx'
@@ -36,12 +36,19 @@ export default function MainFeed() {
 
   useTrackSearch(query)
 
-  const now = getNow()
+  // `now` is clamped to the tournament window for 2026 — visits before
+  // Jun 11 land on Jun 11, visits after Jul 19 land on Jul 19. This is
+  // what drives the "today" pill and the default-day feed; the wall
+  // clock is still available below for framing copy.
+  const now = getTournamentToday()
   const todayIso = formatShortDate(now)
   const longDate = formatLongEyebrow(now)
   const yesterday = new Date(now)
   yesterday.setDate(yesterday.getDate() - 1)
   const yesterdayIso = formatShortDate(yesterday)
+  const wallNow = getNow()
+  const beforeKickoff = wallNow < TOURNAMENT_WINDOW.start
+  const afterFinal    = wallNow > TOURNAMENT_WINDOW.end
 
   // Effective date the feed is showing — selected pill, or today.
   const activeDateIso = selectedDate || todayIso
@@ -83,7 +90,14 @@ export default function MainFeed() {
     return m ? m.md : null
   }, [matches, activeDateIso])
 
-  const eyebrow = activeMatchday ? `${longDate} · Matchday ${activeMatchday}` : longDate
+  // When the wall clock is outside the tournament window AND the user is
+  // viewing the clamped "today" pill, surface why so they don't think the
+  // page is wrong.
+  const eyebrow = (() => {
+    if (isViewingToday && beforeKickoff) return `Tournament opens ${longDate}`
+    if (isViewingToday && afterFinal)    return `Final · ${longDate}`
+    return activeMatchday ? `${longDate} · Matchday ${activeMatchday}` : longDate
+  })()
 
   const counts = useMemo(() => ({
     all:       matches.length,
@@ -120,6 +134,16 @@ export default function MainFeed() {
     () => sortByStatus(filtered.matches.filter(m => dateKey(m) === activeDateIso)),
     [filtered.matches, activeDateIso],
   )
+
+  // Fallback when the selected day has no matches (pre-tournament, post-
+  // final, or rest days): the next chronological scheduled matches so the
+  // page is never an empty stub.
+  const upcomingFallback = useMemo(() => {
+    return matches
+      .filter(m => m.status === 'SCHED')
+      .sort((a, b) => (a.kickoff_iso || '').localeCompare(b.kickoff_iso || ''))
+      .slice(0, 5)
+  }, [matches])
 
   // Track filter changes (only after the initial render).
   const isInitialMount = useRef(true)
@@ -213,8 +237,30 @@ export default function MainFeed() {
               </div>
 
               {(() => {
-                const list = (tab === 'all' && !isSearching) ? feedByDate : feedByTab
+                const isDefaultView = tab === 'all' && !isSearching
+                const list = isDefaultView ? feedByDate : feedByTab
                 if (list.length === 0) {
+                  // Default view: surface the next fixtures so the page is
+                  // never an empty stub before/after the tournament or on
+                  // rest days. Other tabs keep their stricter empty state.
+                  if (isDefaultView && upcomingFallback.length > 0) {
+                    const banner = beforeKickoff
+                      ? 'Tournament starts soon'
+                      : afterFinal ? 'Tournament concluded' : 'Up next'
+                    return (
+                      <>
+                        <div className="upcoming-banner">
+                          <span className="upcoming-eyebrow">{banner}</span>
+                          <span className="upcoming-sub">No matches on {activeDateIso}. Showing the next fixtures.</span>
+                        </div>
+                        <div className="match-list">
+                          {upcomingFallback.map(m => (
+                            <MatchCard key={m.id} match={m} to={`/match/${m.id}`} showDate />
+                          ))}
+                        </div>
+                      </>
+                    )
+                  }
                   return (
                     <div className="empty">
                       <div className="empty-icon" aria-hidden="true">

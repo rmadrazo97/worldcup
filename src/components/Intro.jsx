@@ -1,4 +1,4 @@
-import { formatShortDate } from '../api/clock.js'
+import { formatShortDate, getUserTimezoneAbbr } from '../api/clock.js'
 
 const dateKey = (m) => {
   if (!m?.kickoff_iso) return ''
@@ -10,6 +10,7 @@ export default function Intro({ matches, todayIso, activeDateIso, eyebrow }) {
   const viewKey = activeDateIso || todayIso
   const viewCount = matches.filter(m => dateKey(m) === viewKey).length
   const isToday = viewKey === todayIso
+  const tz = getUserTimezoneAbbr()
   return (
     <div className="intro">
       <span className="intro-eyebrow">{eyebrow}</span>
@@ -20,6 +21,10 @@ export default function Intro({ matches, todayIso, activeDateIso, eyebrow }) {
           {liveCount > 0 ? <><strong>{liveCount}</strong> live now</> : 'No matches live'}
           <span className="intro-sep"> · </span>
           {viewCount} match{viewCount === 1 ? '' : 'es'} {isToday ? 'today' : `on ${viewKey}`}
+          {tz && <>
+            <span className="intro-sep"> · </span>
+            <span className="intro-tz" title="All kickoff times shown in your local timezone">times in {tz}</span>
+          </>}
         </span>
       </div>
     </div>

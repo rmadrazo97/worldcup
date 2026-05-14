@@ -1,6 +1,13 @@
+import { formatShortDate } from '../api/clock.js'
+
+const dateKey = (m) => {
+  if (!m?.kickoff_iso) return ''
+  try { return formatShortDate(new Date(m.kickoff_iso)) } catch { return '' }
+}
+
 export default function Intro({ matches, todayIso, eyebrow }) {
-  const liveCount = matches.filter(m => m.status === "LIVE").length
-  const todayCount = matches.filter(m => m.date === todayIso).length
+  const liveCount = matches.filter(m => m.status === 'LIVE' || m.status === 'HT').length
+  const todayCount = matches.filter(m => dateKey(m) === todayIso).length
   return (
     <div className="intro">
       <span className="intro-eyebrow">{eyebrow}</span>

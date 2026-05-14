@@ -1,4 +1,4 @@
-import { FORMATIONS } from '../api/mock-data.js'
+import { FORMATIONS } from '../api/formations.js'
 
 export default function Pitch({ home, away }) {
   const homeForm = FORMATIONS[home.formation] || FORMATIONS["4-3-3"]

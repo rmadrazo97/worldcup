@@ -1,18 +1,25 @@
 import { Link } from 'react-router-dom'
-import { TEAMS, VENUES } from '../api/mock-data.js'
 import { Flag } from './Flag.jsx'
+import { useTeam } from '../api/providers.jsx'
 
-export default function LiveCard({ match }) {
+export default function LiveCard({ match, venues }) {
+  const home = useTeam(match.home)
+  const away = useTeam(match.away)
+  const venueLabel = (venues && venues[match.venueShort]) || match.venueShort || ''
+  const isHT = match.status === 'HT'
+  // minute may be null on a LIVE match — render empty so the "Live" dot in
+  // live-status carries the only label rather than duplicating it.
+  const minuteLabel = match.minute || (isHT ? 'HT' : '')
   return (
     <Link to={`/match/${match.id}`} className="live-card">
       <div className="live-card-top">
-        <span className="live-card-group">Group {match.group} · MD{match.md}</span>
-        <span className="live-card-venue">{VENUES[match.venue]}</span>
+        <span className="live-card-group">Group {match.group}{match.md ? ` · MD${match.md}` : ''}</span>
+        <span className="live-card-venue">{venueLabel}</span>
       </div>
       <div className="live-card-body">
         <div className="live-team">
           <span className="crest"><Flag team={match.home} size="lg" /></span>
-          <span className="name">{TEAMS[match.home].name}</span>
+          <span className="name">{home.name}</span>
         </div>
         <div className="live-score">
           <span>{match.hs}</span>
@@ -21,22 +28,22 @@ export default function LiveCard({ match }) {
         </div>
         <div className="live-team">
           <span className="crest"><Flag team={match.away} size="lg" /></span>
-          <span className="name">{TEAMS[match.away].name}</span>
+          <span className="name">{away.name}</span>
         </div>
       </div>
       <div className="live-card-foot">
         <span className="live-status">
           <span className="live-dot" />
-          <span>Live</span>
+          <span>{isHT ? 'Half time' : 'Live'}</span>
         </span>
-        <span className="live-minute">{match.minute}</span>
+        <span className="live-minute">{minuteLabel}</span>
       </div>
     </Link>
   )
 }
 
-export function LiveSection({ matches }) {
-  const live = matches.filter(m => m.status === "LIVE")
+export function LiveSection({ matches, venues }) {
+  const live = matches.filter(m => m.status === 'LIVE' || m.status === 'HT')
   if (live.length === 0) return null
   return (
     <section className="section">
@@ -45,10 +52,10 @@ export function LiveSection({ matches }) {
           Live now
           <span className="badge-count">{live.length}</span>
         </h2>
-        <a href="#" className="section-aux" onClick={(e)=>e.preventDefault()}>All matches →</a>
+        <a href="#" className="section-aux" onClick={(e) => e.preventDefault()}>All matches →</a>
       </div>
       <div className="live-grid">
-        {live.map(m => <LiveCard key={m.id} match={m} />)}
+        {live.map(m => <LiveCard key={m.id} match={m} venues={venues} />)}
       </div>
     </section>
   )

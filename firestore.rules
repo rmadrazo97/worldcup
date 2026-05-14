@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public read-only score data. Writes only via Admin SDK (Functions),
+    // which bypasses these rules. App Check is enforced upstream at the
+    // callable layer; Firestore reads from listeners are deliberately
+    // public-read because the score data itself is not sensitive.
+
+    match /teams/{doc=**}          { allow read: if true; allow write: if false; }
+    match /stadiums/{doc=**}       { allow read: if true; allow write: if false; }
+    match /groups/{doc=**}         { allow read: if true; allow write: if false; }
+    match /standings/{doc=**}      { allow read: if true; allow write: if false; }
+    match /matches/{doc=**}        { allow read: if true; allow write: if false; }
+    match /matchDetails/{doc=**}   { allow read: if true; allow write: if false; }
+    match /lineups/{doc=**}        { allow read: if true; allow write: if false; }
+    match /players/{doc=**}        { allow read: if true; allow write: if false; }
+    match /rosters/{doc=**}        { allow read: if true; allow write: if false; }
+
+    // Internal collections — server only.
+    match /meta/{doc=**}           { allow read, write: if false; }
+    match /rate_buckets/{doc=**}   { allow read, write: if false; }
+    match /cacheIndex/{doc=**}     { allow read, write: if false; }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

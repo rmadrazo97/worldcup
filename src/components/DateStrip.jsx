@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { formatShortDate } from '../api/clock.js'
 
 // ─────────── Tournament dates: build the date strip ───────────
 // June 11 – July 19, 2026. We pre-compute the strip with day-of-week labels
 // and which days have live matches. "Today" is June 19.
 const TOURNAMENT_DAYS = (() => {
   const out = []
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-  const dows = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const dows = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   // Jun 11 2026 is a Thursday
   const start = new Date(2026, 5, 11)
   for (let i = 0; i < 39; i++) {
@@ -22,24 +23,31 @@ const TOURNAMENT_DAYS = (() => {
   return out
 })()
 
+const dateKey = (m) => {
+  if (!m?.kickoff_iso) return ''
+  try { return formatShortDate(new Date(m.kickoff_iso)) } catch { return '' }
+}
+
 export default function DateStrip({ matches, todayIso }) {
   const stripRef = useRef(null)
   const liveByDay = useMemo(() => {
     const set = new Set()
-    matches.forEach(m => { if (m.status === "LIVE") set.add(m.date) })
+    matches.forEach(m => {
+      if (m.status === 'LIVE' || m.status === 'HT') set.add(dateKey(m))
+    })
     return set
   }, [matches])
 
   useEffect(() => {
     // Scroll today into view on mount
-    const todayEl = stripRef.current?.querySelector(".date-pill.is-today")
+    const todayEl = stripRef.current?.querySelector('.date-pill.is-today')
     if (todayEl) {
-      todayEl.scrollIntoView({ block: "nearest", inline: "center" })
+      todayEl.scrollIntoView({ block: 'nearest', inline: 'center' })
     }
   }, [])
 
   const scrollBy = (dx) => {
-    stripRef.current?.scrollBy({ left: dx, behavior: "smooth" })
+    stripRef.current?.scrollBy({ left: dx, behavior: 'smooth' })
   }
 
   return (
@@ -66,10 +74,10 @@ export default function DateStrip({ matches, todayIso }) {
             <div
               key={d.iso}
               className={
-                "date-pill" +
-                (isToday ? " is-today" : "") +
-                (isPast ? " is-past" : "") +
-                (hasLive ? " has-live" : "")
+                'date-pill' +
+                (isToday ? ' is-today' : '') +
+                (isPast ? ' is-past' : '') +
+                (hasLive ? ' has-live' : '')
               }
             >
               <span className="d-num">{d.num}</span>

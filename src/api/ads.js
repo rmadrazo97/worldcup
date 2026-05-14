@@ -7,9 +7,14 @@
 
 const truthy = (v) => v !== 'false' && v !== false && v != null && v !== ''
 
+// Baked-in publisher ID — also hardcoded in index.html for AdSense site
+// verification. Env var still wins so test environments / a future second
+// publisher can override without a code change.
+const DEFAULT_CLIENT_ID = 'ca-pub-3627469464584624'
+
 export const adsConfig = {
   enabled: truthy(import.meta.env.VITE_ADS_ENABLED ?? 'true'),
-  clientId: import.meta.env.VITE_ADSENSE_CLIENT_ID || '',
+  clientId: import.meta.env.VITE_ADSENSE_CLIENT_ID || DEFAULT_CLIENT_ID,
   slots: {
     home:  import.meta.env.VITE_ADSENSE_SLOT_HOME  || '',
     group: import.meta.env.VITE_ADSENSE_SLOT_GROUP || '',
@@ -27,7 +32,9 @@ let _loaded = false
 export function loadAdsScript() {
   if (_loaded || !adsReady()) return
   if (typeof document === 'undefined') return
-  if (document.querySelector('script[data-adsense-loader="1"]')) {
+  // Already loaded — either by the hardcoded <script> in index.html (the
+  // common case) or a previous call to this function.
+  if (document.querySelector('script[src*="adsbygoogle.js"]')) {
     _loaded = true
     return
   }

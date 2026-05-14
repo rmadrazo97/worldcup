@@ -10,6 +10,8 @@ import TimelineView from './TimelineView.jsx'
 import { PageSpinner } from './Spinner.jsx'
 import { MatchDetailSkeleton } from './Skeleton.jsx'
 import { track } from '../api/analytics.js'
+import AdSlot from './AdSlot.jsx'
+import { adsConfig } from '../api/ads.js'
 
 function kickoffLabel(iso) {
   if (!iso) return ''
@@ -238,6 +240,9 @@ export default function MatchDetail() {
           </div>
         </div>
 
+        {/* Slot between summary and tabs — never inside the live scoreboard. */}
+        {!isLive && !isHT && <AdSlot slot={adsConfig.slots.match} label="Sponsored" />}
+
         <div className="detail-tabs" role="tablist" aria-label="Match details">
           <button role="tab" aria-selected={tab === 'lineup'} className={'detail-tab' + (tab === 'lineup' ? ' active' : '')} onClick={() => { setTab('lineup'); track('match_tab', { match_id: match.id, tab: 'lineup' }) }}>Line up</button>
           <button role="tab" aria-selected={tab === 'stats'}  className={'detail-tab' + (tab === 'stats'  ? ' active' : '')} onClick={() => { setTab('stats');  track('match_tab', { match_id: match.id, tab: 'stats' }) }}>Statistics</button>
@@ -247,6 +252,8 @@ export default function MatchDetail() {
         {tab === 'lineup'   && <LineupView   match={match} details={details} />}
         {tab === 'stats'    && <StatsView    match={match} details={details} />}
         {tab === 'timeline' && <TimelineView match={match} details={details} />}
+
+        <AdSlot slot={adsConfig.slots.match} label="Sponsored" />
       </div>
     </div>
   )

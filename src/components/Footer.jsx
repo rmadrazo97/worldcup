@@ -1,3 +1,6 @@
+import { Link } from 'react-router-dom'
+import { openConsentBanner } from '../api/consent.js'
+
 // Build identifiers injected by Vite (`define` in vite.config.js).
 // eslint-disable-next-line no-undef
 const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'
@@ -25,6 +28,13 @@ export default function Footer() {
           All rights reserved
           <span className="dot">·</span>
           <a href="mailto:acloudbrew@proton.me">acloudbrew@proton.me</a>
+        </p>
+        <p className="footer-line footer-meta">
+          <Link to="/privacy">Privacy Policy</Link>
+          <span className="dot">·</span>
+          <button type="button" className="link-btn" onClick={openConsentBanner}>
+            Cookie settings
+          </button>
         </p>
         <p className="footer-line footer-fine">
           Not affiliated with FIFA. Live scores, fixtures and group standings updated in real time.

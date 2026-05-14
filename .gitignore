@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+
+# Vite PWA build outputs
+dev-dist
+.firebase
+
+# Claude Code runtime state
+.claude/
+
+# Internal working notes (kept local, not for the public repo)
+agents/
+tasks/

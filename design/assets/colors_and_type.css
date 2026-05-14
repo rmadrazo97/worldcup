@@ -1,0 +1,326 @@
+/* InteractiveAI — Colors & Type tokens
+ * Source of truth: interactive-frontend/src/app/globals.css + tailwind.config.js
+ * (pulled from Interactive-AI-Labs/interactive-platform@main).
+ *
+ * This file mirrors the production shadcn/ui theme verbatim. All colors are
+ * HSL triplets so you can use hsl(var(--token) / 0.5) for alpha. Toggle the
+ * .dark class on <html> or any ancestor to switch themes.
+ *
+ * In addition to the shadcn tokens, a small marketing layer is defined at the
+ * bottom — the red hero accents, grid backgrounds, and brand shadows the
+ * marketing site uses but the product UI does not.
+ */
+
+/* ---------- 1. Fonts (production stack) ---------- */
+/* Product uses Geist + Geist Mono + JetBrains Mono loaded from Google Fonts
+ * (see interactive-frontend/src/pages/_document.tsx). We self-host here. */
+@font-face {
+  font-family: "Geist";
+  src: url("assets/fonts/geist.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("assets/fonts/geist-mono.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+/* Inter is legacy in public/fonts/ but not referenced in the live product.
+ * Kept here as a fallback for older screens. */
+@font-face {
+  font-family: "Inter";
+  src: url("assets/fonts/inter.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- 2. Theme tokens — LIGHT (default) ---------- */
+/* Mirrors :root { ... } in globals.css */
+:root {
+  /* Surfaces */
+  --background:           0 0% 100%;            /* #FFFFFF */
+  --foreground:           222.2 84% 4.9%;       /* near-black slate */
+  --muted:                210 40% 96.1%;
+  --muted-dark:           210 11% 34%;
+  --muted-foreground:     218 8% 46%;           /* slate-500ish */
+  --popover:              0 0% 100%;
+  --popover-foreground:   222.2 84% 4.9%;
+  --card:                 0 0% 100%;
+  --card-foreground:      220 37% 8%;
+  --header:               210 40% 98%;
+  --header-foreground:    var(--foreground);
+
+  /* Borders + inputs */
+  --border:               220 13% 91%;          /* slate-200 */
+  --input:                214.3 31.8% 91.4%;
+  --ring:                 215 20.2% 65.1%;
+
+  /* Roles */
+  --primary:              220 37% 8%;           /* near-black — default button fill */
+  --primary-foreground:   210 20% 98%;
+  --secondary:            210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --tertiary:             214 32% 91%;
+  --tertiary-foreground:  222.2 47.4% 11.2%;
+  --accent:               220 14% 96%;          /* interactive row hover */
+  --accent-foreground:    218 39% 11%;
+
+  /* The product's real interactive accent color */
+  --primary-accent:       243 75.4% 58.6%;      /* #5C55E0 indigo */
+  --hover-primary-accent: 239 83.5% 66.7%;
+
+  /* Destructive + feedback */
+  --destructive:          4 74% 39%;            /* #AE1F18 */
+  --destructive-foreground: 210 40% 98%;
+  --success:              114 48% 44%;          /* #4BA82F */
+  --warning:              45 100% 50%;          /* #FFC000 */
+  --chart:                359 88% 48%;          /* #E60F13 — ONLY charts + logo share this */
+
+  /* Tinted chip system */
+  --muted-magenta:        330 90% 70%;
+  --muted-blue:           217 91% 60%;
+  --muted-green:          84 81% 44%;
+  --muted-gray:           210 50% 91.1%;
+  --light-gray:           0 0% 56%;
+  --muted-red:            356 100% 97%;
+  --muted-purple:         271 91% 65%;
+  --muted-orange:         25 95% 53%;
+  --muted-dark-green:     173 80% 40%;
+  --muted-yellow:         45 93% 47%;
+
+  /* Red scale (logo + destructive + chart) */
+  --light-red:            329 77.8% 94.7%;
+  --red-accent:           4 96% 71%;
+  --soft-red:             4 71% 80%;
+  --dark-red:             0 72.2% 50.6%;
+  --tint-red:             3 69% 95%;
+  --medium-red:           4 74% 49%;
+  --medium-dark-red:      4 74% 20%;
+
+  /* Green + yellow + blue scales */
+  --accent-light-green:   138 76.5% 96.7%;
+  --accent-dark-green:    112 100% 32%;
+  --light-yellow:         55 91.7% 95.3%;
+  --dark-yellow:          43 96% 40%;
+  --tint-yellow:          47 90% 96%;
+  --medium-yellow:        32 93% 66%;
+  --light-green:          141 84.2% 92.5%;
+  --dark-green:           176 60.8% 19%;
+  --tint-green:           169 71% 89%;
+  --light-mid-green:      169 71% 78%;
+  --medium-green:         170 71% 35%;
+  --medium-light-green:   135 45% 50%;
+  --light-blue:           214 94.6% 92.7%;
+  --dark-blue:            217 91.2% 59.8%;
+  --accent-light-blue:    251 95.2% 91.8%;
+  --accent-dark-blue:     224 76.3% 38%;
+  --accent-sky-blue:      184 71% 47%;
+
+  /* Status pills (the product pattern) */
+  --status-active-bg:     169 72% 89%;   --status-active-text:   170 71% 35%;
+  --status-pending-bg:    53 98% 88%;    --status-pending-text:  43 96% 40%;
+  --status-archived-bg:   5 70% 90%;     --status-archived-text: 4 74% 39%;
+
+  /* Sidebar */
+  --sidebar-background:           0 0% 100%;
+  --sidebar-foreground:           240 5.3% 26.1%;
+  --sidebar-primary:              240 5.9% 10%;
+  --sidebar-primary-foreground:   0 0% 98%;
+  --sidebar-accent:               210 40% 96.9%;
+  --sidebar-accent-foreground:    240 5.9% 10%;
+  --sidebar-border:               220 13% 91%;
+  --sidebar-ring:                 215 9% 65%;
+
+  /* Shape */
+  --radius:               0.5rem;                /* 8px — used for sm/md/lg */
+
+  /* Toast — signature touch (white → pink fade) */
+  --toast-bg: linear-gradient(270deg, #fff 0%, #fff1f2 100%);
+
+  /* ---------- Marketing layer (the red hero system) ---------- */
+  /* These are NOT in globals.css — they're additions that live only on the
+   * marketing surface. Kept here so marketing HTML can reference them. */
+  --mkt-canvas:           #F5F5F3;     /* warm off-white (never pure white) */
+  --mkt-gradient-start:   #FEFEFE;
+  --mkt-gradient-end:     #FFF1F2;
+  --mkt-brand-red:        #E80F13;     /* the logo + hero emphasis color */
+  --mkt-brand-red-hover:  #CC0D11;
+  --mkt-brand-black:      #0A0A0A;
+  --mkt-border:           #E5E7EB;
+  --mkt-grid-cell:        96px;
+  --mkt-shadow-premium:   0 0 0 1px rgba(0,0,0,0.03), 0 1px 2px 0 rgba(0,0,0,0.04), 0 4px 8px 0 rgba(0,0,0,0.04), 0 12px 24px 0 rgba(0,0,0,0.06);
+
+  /* Fonts */
+  --font-sans:  "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono:  "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ---------- 3. Theme tokens — DARK ---------- */
+/* Mirrors .dark { ... } in globals.css. Activate with class="dark" on an
+ * ancestor. System default in _app.tsx is enableSystem + defaultTheme="system". */
+.dark {
+  --background:           222.2 84% 4.9%;       /* slate-950 */
+  --foreground:           210 40% 83%;
+  --muted:                217.2 32.6% 17.5%;
+  --muted-dark:           217 15% 28%;
+  --muted-foreground:     215 9% 65%;
+  --popover:              212 28% 17%;
+  --popover-foreground:   210 40% 88%;
+  --card:                 222.2 84% 4.9%;
+  --card-foreground:      210 20% 98%;
+  --header:               217.2 32.6% 15%;
+  --border:               217.2 32.6% 27.5%;
+  --input:                0 0% 100%;
+  --ring:                 217.2 32.6% 17.5%;
+
+  --primary:              220 13% 91%;          /* dark-mode flips: light button on dark */
+  --primary-foreground:   218 39% 11%;
+  --secondary:            217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 88%;
+  --tertiary:             217.2 32.6% 30%;
+  --tertiary-foreground:  210 40% 88%;
+  --accent:               215 18% 27%;
+  --accent-foreground:    210 20% 98%;
+
+  --primary-accent:         246 55% 70%;        /* lighter indigo for dark bg */
+  --muted-primary-accent:   239 83.5% 66.7%;
+
+  --destructive:          4 71% 59%;
+  --destructive-foreground: 0 85.7% 97.3%;
+  --success:              114 48% 54%;
+  --warning:              45 100% 70%;
+
+  --muted-blue:           215 95% 73.1%;
+  --muted-green:          142 76.7% 73.1%;
+  --muted-magenta:        330 76.7% 73.1%;
+  --muted-gray:           210 50% 25%;
+  --light-gray:           var(--foreground);
+
+  --light-red:            0 62.8% 30.6%;
+  --dark-red:             0 90.6% 70.8%;
+  --light-yellow:         32 81% 28.8%;
+  --dark-yellow:          53 98.3% 76.9%;
+  --light-green:          144 61.2% 20.2%;
+  --dark-green:           142 76.7% 73.1%;
+  --light-blue:           224 64.3% 32.9%;
+  --dark-blue:            212 96.4% 78.4%;
+
+  --accent-light-green:   192 21% 9%;
+  --accent-dark-green:    124 21.8% 30.6%;
+  --accent-light-blue:    263 60% 50.4%;
+  --accent-dark-blue:     224 50% 90%;
+
+  --popover-dark:         212 28% 17%;
+  --accent-dark:          215 18% 27%;
+  --background-dark:      0 0% 4%;
+  --card-dark:            218 39% 11%;
+  --card-foreground-dark: 220 37% 8%;
+
+  --sidebar-background:         222.2 84% 4.9%;
+  --sidebar-foreground:         210 20% 98%;
+  --sidebar-primary:            210 40% 81%;
+  --sidebar-primary-foreground: 222.2 47.4% 10.2%;
+  --sidebar-accent:             217.2 32.6% 16.5%;
+  --sidebar-accent-foreground:  210 40% 86%;
+  --sidebar-border:             217.2 32.6% 26.5%;
+  --sidebar-ring:               210 11% 34%;
+
+  --status-active-bg:    169 45% 25%;   --status-active-text:   170 55% 65%;
+  --status-pending-bg:   45 45% 22%;    --status-pending-text:  45 85% 65%;
+  --status-archived-bg:  5 45% 30%;     --status-archived-text: 4 65% 65%;
+
+  --toast-bg:             hsl(var(--card));
+  --card-hero-gradient:   linear-gradient(180deg, #111927 0%, #263040 100%);
+}
+
+/* ---------- 4. Type scale (Tailwind tokens, in px for reference) ---------- */
+/* Uses the production scale from tailwind.config.js.
+ * rem assumes browser default 16px root. */
+.t-3xs      { font-size: 0.625rem;  line-height: 0.875rem; }  /* 10 / 14 */
+.t-2xs      { font-size: 0.6875rem; line-height: 1rem; }      /* 11 / 16 */
+.t-xs       { font-size: 0.7rem;    line-height: 1rem; }      /* 11.2 / 16 */
+.t-sm       { font-size: 0.825rem;  line-height: 1.25rem; }   /* 13.2 / 20 */
+.t-base     { font-size: 0.9rem;    line-height: 1.375rem; }  /* 14.4 / 22 */
+.t-lg       { font-size: 1.1rem;    line-height: 1.625rem; }  /* 17.6 / 26 */
+.t-xl       { font-size: 1.2rem;    line-height: 1.75rem; }   /* 19.2 / 28 */
+.t-2xl      { font-size: 1.3rem;    line-height: 1.875rem; }  /* 20.8 / 30 */
+.t-3xl      { font-size: 1.5rem;    line-height: 2.25rem; }   /* 24 / 36 */
+
+/* Tremor metric (used in StatCards + dashboards) */
+.t-metric   { font-size: 1.5rem;    line-height: 2.25rem; font-weight: 600; letter-spacing: -0.02em; }
+.t-title    { font-size: 0.9rem;    line-height: 1.75rem; font-weight: 600; }
+.t-label    { font-size: 0.7rem;    line-height: 1rem;    font-weight: 500; color: hsl(var(--muted-foreground)); }
+
+/* Page title (h2 in PageHeader) — text-xl font-semibold leading-7 tracking-tight */
+.t-page-title { font-size: 1.2rem; line-height: 1.75rem; font-weight: 600; letter-spacing: -0.01em; color: hsl(var(--foreground)); }
+
+/* Mono — code, IDs, timestamps */
+.t-mono     { font-family: var(--font-mono); font-size: 0.825rem; line-height: 1.25rem; }
+
+/* ---------- 5. Marketing type (the big red-accented hero) ---------- */
+/* Uses Geist 500/600, tight tracking. NOT loaded by default on product pages. */
+.mkt-display-hero { font-family: var(--font-sans); font-weight: 500; font-size: 108px; line-height: 100%; letter-spacing: -0.02em; color: var(--mkt-brand-black); }
+.mkt-display-lg   { font-family: var(--font-sans); font-weight: 500; font-size: 80px;  line-height: 100%; letter-spacing: -0.02em; color: var(--mkt-brand-black); }
+.mkt-h1           { font-family: var(--font-sans); font-weight: 600; font-size: 48px;  line-height: 1.1;  letter-spacing: -0.025em; color: var(--mkt-brand-black); }
+.mkt-h2           { font-family: var(--font-sans); font-weight: 600; font-size: 36px;  line-height: 1.2;  letter-spacing: -0.02em; color: var(--mkt-brand-black); }
+.mkt-h3           { font-family: var(--font-sans); font-weight: 600; font-size: 24px;  line-height: 1.3;  letter-spacing: -0.01em; color: var(--mkt-brand-black); }
+.mkt-lead         { font-family: var(--font-sans); font-weight: 400; font-size: 18px;  line-height: 1.625; color: #6B7280; }
+.mkt-eyebrow      { font-family: var(--font-sans); font-weight: 500; font-size: 11px;  line-height: 1;     letter-spacing: 0.14em; text-transform: uppercase; color: var(--mkt-brand-red); }
+.mkt-emph         { color: var(--mkt-brand-red); }
+
+/* Marketing button — the black pill with lift */
+.btn-mkt-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 16px;
+  border-radius: 10px;
+  background: var(--mkt-brand-black);
+  color: #fff;
+  font-family: var(--font-sans); font-weight: 500; font-size: 14px;
+  box-shadow: var(--mkt-shadow-premium);
+  border: 1px solid var(--mkt-brand-black);
+  transition: transform 200ms cubic-bezier(0.2,0,0,1);
+  text-decoration: none;
+}
+.btn-mkt-primary:hover { transform: translateY(-1px); }
+.btn-mkt-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 16px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--mkt-brand-black);
+  font-family: var(--font-sans); font-weight: 500; font-size: 14px;
+  border: 1px solid var(--mkt-border);
+  text-decoration: none;
+}
+
+/* ---------- 6. Element defaults ---------- */
+/* Mirrors the `@layer base` block in globals.css + _document.tsx:
+ *   body { @apply bg-background text-foreground; antialiased; } */
+html, body {
+  font-family: var(--font-sans);
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+code, kbd, samp, pre { font-family: var(--font-mono); }
+
+/* Utility aliases that make tokens easier to use in raw HTML */
+.bg-app          { background: hsl(var(--background)); }
+.bg-card         { background: hsl(var(--card)); }
+.bg-muted        { background: hsl(var(--muted)); }
+.bg-accent       { background: hsl(var(--accent)); }
+.bg-primary      { background: hsl(var(--primary)); }
+.bg-primary-accent { background: hsl(var(--primary-accent)); }
+.text-fg         { color: hsl(var(--foreground)); }
+.text-muted      { color: hsl(var(--muted-foreground)); }
+.text-primary    { color: hsl(var(--primary)); }
+.text-primary-accent { color: hsl(var(--primary-accent)); }
+.text-destructive { color: hsl(var(--destructive)); }
+.text-success    { color: hsl(var(--success)); }
+.border-default  { border-color: hsl(var(--border)); }
+.rounded-default { border-radius: var(--radius); }
